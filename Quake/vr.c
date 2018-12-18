@@ -175,7 +175,7 @@ fbo_t CreateFBO(int width, int height) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_INT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
     return fbo;
 }
@@ -446,10 +446,10 @@ void VID_VR_Init()
 
     // Set the cvar if invoked from a command line parameter
     {
-        int i = COM_CheckParm("-vr");
-        if (i && i < com_argc - 1) {
+        //int i = COM_CheckParm("-vr");
+        //if (i && i < com_argc - 1) {
             Cvar_SetQuick(&vr_enabled, "1");
-        }
+        //}
     }
 }
 
