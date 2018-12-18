@@ -217,17 +217,17 @@ const char * IVRSystem_GetControllerAxisTypeNameFromEnum(IVRSystem * this_, EVRC
     return this_->GetControllerAxisTypeNameFromEnum(eAxisType);
 }
 
-bool IVRSystem_CaptureInputFocus(IVRSystem * this_) {
-    return this_->CaptureInputFocus();
-}
-
-void IVRSystem_ReleaseInputFocus(IVRSystem * this_) {
-    return this_->ReleaseInputFocus();
-}
-
-bool IVRSystem_IsInputFocusCapturedByAnotherProcess(IVRSystem * this_) {
-    return this_->IsInputFocusCapturedByAnotherProcess();
-}
+//bool IVRSystem_CaptureInputFocus(IVRSystem * this_) {
+//    return this_->CaptureInputFocus();
+//}
+//
+//void IVRSystem_ReleaseInputFocus(IVRSystem * this_) {
+//    return this_->ReleaseInputFocus();
+//}
+//
+//bool IVRSystem_IsInputFocusCapturedByAnotherProcess(IVRSystem * this_) {
+//    return this_->IsInputFocusCapturedByAnotherProcess();
+//}
 
 uint32_t IVRSystem_DriverDebugRequest(IVRSystem * this_, TrackedDeviceIndex_t unDeviceIndex, const char * pchRequest, char * pchResponseBuffer, uint32_t unResponseBufferSize) {
     return this_->DriverDebugRequest(unDeviceIndex, pchRequest, pchResponseBuffer, unResponseBufferSize);
@@ -818,9 +818,9 @@ bool IVROverlay_ComputeOverlayIntersection(IVROverlay * this_, VROverlayHandle_t
     return this_->ComputeOverlayIntersection(ulOverlayHandle, pParams, pResults);
 }
 
-bool IVROverlay_HandleControllerOverlayInteractionAsMouse(IVROverlay * this_, VROverlayHandle_t ulOverlayHandle, TrackedDeviceIndex_t unControllerDeviceIndex) {
-    return this_->HandleControllerOverlayInteractionAsMouse(ulOverlayHandle, unControllerDeviceIndex);
-}
+//bool IVROverlay_HandleControllerOverlayInteractionAsMouse(IVROverlay * this_, VROverlayHandle_t ulOverlayHandle, TrackedDeviceIndex_t unControllerDeviceIndex) {
+//    return this_->HandleControllerOverlayInteractionAsMouse(ulOverlayHandle, unControllerDeviceIndex);
+//}
 
 bool IVROverlay_IsHoverTargetOverlay(IVROverlay * this_, VROverlayHandle_t ulOverlayHandle) {
     return this_->IsHoverTargetOverlay(ulOverlayHandle);
