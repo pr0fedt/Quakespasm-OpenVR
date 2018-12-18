@@ -134,7 +134,7 @@ static void VR_MenuKeyOption(int key, int option)
 	float ipdDiff = 0.2f;
 	int position[] = { 0, 1, 2 };
 	float multisample[] = { 1.0f, 1.25f, 1.50f, 1.75f, 2.0f };
-	int aimmode[] = { 1, 2, 3, 4, 5, 6 };
+	int aimmode[] = { 1, 2, 3, 4, 5, 6, 7 };
 	int deadzoneDiff = 5;
 	int crosshair[] = { 0, 1, 2 };
 	int crosshairDepthDiff = 32;

@@ -125,7 +125,7 @@ cvar_t vr_crosshair = { "vr_crosshair","1", CVAR_ARCHIVE };
 cvar_t vr_crosshair_depth = { "vr_crosshair_depth","0", CVAR_ARCHIVE };
 cvar_t vr_crosshair_size = { "vr_crosshair_size","3.0", CVAR_ARCHIVE };
 cvar_t vr_crosshair_alpha = { "vr_crosshair_alpha","0.25", CVAR_ARCHIVE };
-cvar_t vr_aimmode = { "vr_aimmode","1", CVAR_ARCHIVE };
+cvar_t vr_aimmode = { "vr_aimmode","7", CVAR_ARCHIVE };
 cvar_t vr_deadzone = { "vr_deadzone","30",CVAR_ARCHIVE };
 cvar_t vr_viewkick = { "vr_viewkick", "0", CVAR_NONE };
 cvar_t vr_lefthanded = { "vr_lefthanded", "0", CVAR_NONE };
@@ -187,12 +187,12 @@ void DeleteFBO(fbo_t fbo) {
 }
 
 void QuatToYawPitchRoll(HmdQuaternion_t q, vec3_t out) {
-    float sqw = q.w*q.w;
+	float sqw = q.w*q.w;
     float sqx = q.x*q.x;
     float sqy = q.y*q.y;
     float sqz = q.z*q.z;
     float unit = sqx + sqy + sqz + sqw; // if normalised is one, otherwise is correction factor
-    float test = q.x*q.y + q.z*q.w;
+    float test = q.z*q.y + q.x*q.w;
     if (test > 0.499*unit) { // singularity at north pole
         out[YAW] = 2 * atan2(q.x, q.w) / M_PI_DIV_180;
         out[ROLL] = -M_PI / 2 / M_PI_DIV_180;
@@ -204,9 +204,9 @@ void QuatToYawPitchRoll(HmdQuaternion_t q, vec3_t out) {
         out[PITCH] = 0;
     }
     else {
-        out[YAW] = atan2(2 * q.y*q.w - 2 * q.x*q.z, sqx - sqy - sqz + sqw) / M_PI_DIV_180;
-        out[ROLL] = -asin(2 * test / unit) / M_PI_DIV_180;
-        out[PITCH] = -atan2(2 * q.x*q.w - 2 * q.y*q.z, -sqx + sqy - sqz + sqw) / M_PI_DIV_180;
+		out[ROLL] = -atan2(2 * (q.x*q.y + q.w*q.z), q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z) / M_PI_DIV_180;
+		out[PITCH] = -asin(-2 * (q.y*q.z - q.w*q.x)) / M_PI_DIV_180;
+		out[YAW] = atan2(2 * (q.x*q.z + q.w*q.y), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z) / M_PI_DIV_180;
     }
 }
 
@@ -794,9 +794,9 @@ void VR_SetMatrices() {
     glRotatef(-90, 1, 0, 0); // put Z going up
     glRotatef(90, 0, 0, 1); // put Z going up
 
-    glRotatef(-r_refdef.viewangles[PITCH], 0, 1, 0);
     glRotatef(-r_refdef.viewangles[ROLL], 1, 0, 0);
-    glRotatef(-r_refdef.viewangles[YAW], 0, 0, 1);
+	glRotatef(-r_refdef.viewangles[PITCH], 0, 1, 0);
+	glRotatef(-r_refdef.viewangles[YAW], 0, 0, 1);
 
     glTranslatef(-r_refdef.vieworg[0] - position[0], -r_refdef.vieworg[1] - position[1], -r_refdef.vieworg[2] - position[2]);
 }
