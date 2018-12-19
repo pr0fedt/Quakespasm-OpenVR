@@ -35,6 +35,7 @@ typedef struct {
 } vr_eye_t;
 
 typedef struct {
+	int deviceIndex;
     vec3_t position;
     vec3_t orientation;
     HmdVector3_t rawvector;
@@ -93,7 +94,7 @@ extern void R_RenderScene(void);
 extern int glx, gly, glwidth, glheight;
 extern refdef_t r_refdef;
 extern vec3_t vright;
-
+float vrYaw;
 
 IVRSystem *ovrHMD;
 TrackedDevicePose_t ovr_DevicePose[16]; //k_unMaxTrackedDeviceCount
@@ -109,6 +110,7 @@ static GLuint mirror_texture = 0;
 static GLuint mirror_fbo = 0;
 static int attempt_to_refocus_retry = 0;
 
+static vec3_t headOrigin;
 
 // Wolfenstein 3D, DOOM and QUAKE use the same coordinate/unit system:
 // 8 foot (96 inch) height wall == 64 units, 1.5 inches per pixel unit
@@ -206,7 +208,7 @@ void QuatToYawPitchRoll(HmdQuaternion_t q, vec3_t out) {
     else {
 		out[ROLL] = -atan2(2 * (q.x*q.y + q.w*q.z), q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z) / M_PI_DIV_180;
 		out[PITCH] = -asin(-2 * (q.y*q.z - q.w*q.x)) / M_PI_DIV_180;
-		out[YAW] = atan2(2 * (q.x*q.z + q.w*q.y), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z) / M_PI_DIV_180;
+		out[YAW] = atan2(2 * (q.x*q.z + q.w*q.y), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z) / M_PI_DIV_180 + vrYaw;
     }
 }
 
@@ -394,6 +396,19 @@ void HmdQuatToAngles(const HmdQuaternion_t q, vec3_t a)
     a[YAW] = (180.0 / M_PI)*atan2(2 * (q.x * q.y + q.z * q.w), (q2[1] - q2[2] - q2[3] + q2[0]));
 }
 
+void HmdVec3RotateY(HmdVector3_t* pos, float angle)
+{
+	float s = sin(angle);
+	float c = cos(angle);
+	float x = c * pos->v[0] - s * pos->v[2];
+	float y = s * pos->v[0] + c * pos->v[2];
+
+	pos->v[0] = x;
+	pos->v[2] = y;
+}
+
+
+
 
 // ----------------------------------------------------------------------------
 // Callbacks for cvars
@@ -559,6 +574,19 @@ static void RenderScreenForCurrentEye_OVR()
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, 0, 0);
 }
 
+void SetHandPos(int index, entity_t *player)
+{
+	vec3_t headLocalPreRot;
+	_VectorSubtract(controllers[index].position, headOrigin, headLocalPreRot);
+	vec3_t headLocal;
+	Vec3RotateZ(headLocalPreRot, vrYaw * M_PI_DIV_180, headLocal);
+	_VectorAdd(headLocal, headOrigin, headLocal);
+	
+	cl.handpos[index][0] = -headLocal[0] + player->origin[0];
+	cl.handpos[index][1] = -headLocal[1] + player->origin[1];
+	cl.handpos[index][2] = headLocal[2] + player->origin[2] + cl.viewheight;
+}
+
 void VR_UpdateScreenContent()
 {
     int i;
@@ -585,12 +613,19 @@ void VR_UpdateScreenContent()
         if (ovr_DevicePose[iDevice].bPoseIsValid && IVRSystem_GetTrackedDeviceClass(ovrHMD, iDevice) == TrackedDeviceClass_HMD)
         {
             HmdVector3_t headPos = Matrix34ToVector(ovr_DevicePose->mDeviceToAbsoluteTracking);
+			headOrigin[0] = headPos.v[2];
+			headOrigin[1] = headPos.v[0];
+			headOrigin[2] = headPos.v[1];
+
             HmdQuaternion_t headQuat = Matrix34ToQuaternion(ovr_DevicePose->mDeviceToAbsoluteTracking);
             HmdVector3_t leyePos = Matrix34ToVector(IVRSystem_GetEyeToHeadTransform(ovrHMD, eyes[0].eye));
             HmdVector3_t reyePos = Matrix34ToVector(IVRSystem_GetEyeToHeadTransform(ovrHMD, eyes[1].eye));
 
-            leyePos = RotateVectorByQuaternion(leyePos, headQuat);
+			leyePos = RotateVectorByQuaternion(leyePos, headQuat);
             reyePos = RotateVectorByQuaternion(reyePos, headQuat);
+
+			HmdVec3RotateY(&leyePos, -vrYaw * M_PI_DIV_180);
+			HmdVec3RotateY(&reyePos, -vrYaw * M_PI_DIV_180);
 
             eyes[0].position = AddVectors(headPos, leyePos);
             eyes[1].position = AddVectors(headPos, reyePos);
@@ -601,23 +636,25 @@ void VR_UpdateScreenContent()
         else if (ovr_DevicePose[iDevice].bPoseIsValid && IVRSystem_GetTrackedDeviceClass(ovrHMD, iDevice) == TrackedDeviceClass_Controller)
         {
             HmdVector3_t rawControllerPos = Matrix34ToVector(ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
-            HmdQuaternion_t rawControllerQuat = Matrix34ToQuaternion(ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
+			HmdQuaternion_t rawControllerQuat = Matrix34ToQuaternion(ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
 
             if (IVRSystem_GetControllerRoleForTrackedDeviceIndex(ovrHMD, iDevice) == TrackedControllerRole_LeftHand)
             {
                 if (vr_lefthanded.value == true)
                 {
-                    // Swap controller values for our southpaw players
+					// Swap controller values for our southpaw players
+					controllers[1].deviceIndex = iDevice;
                     controllers[1].rawvector = rawControllerPos;
                     controllers[1].raworientation = rawControllerQuat;
-                    controllers[1].position[0] = rawControllerPos.v[0];
-                    controllers[1].position[1] = rawControllerPos.v[1];
-                    controllers[1].position[2] = rawControllerPos.v[2];
+                    controllers[1].position[0] = rawControllerPos.v[2];
+                    controllers[1].position[1] = rawControllerPos.v[0];
+                    controllers[1].position[2] = rawControllerPos.v[1];
                     QuatToYawPitchRoll(rawControllerQuat, controllers[1].orientation);
                 }
                 else
                 {
-                    controllers[0].rawvector = rawControllerPos;
+					controllers[0].deviceIndex = iDevice;
+					controllers[0].rawvector = rawControllerPos;
                     controllers[0].raworientation = rawControllerQuat;
                     controllers[0].position[0] = rawControllerPos.v[2];
                     controllers[0].position[1] = rawControllerPos.v[0];
@@ -630,7 +667,8 @@ void VR_UpdateScreenContent()
                 if (vr_lefthanded.value == true)
                 {
                     // Swap controller values for our southpaw players
-                    controllers[0].rawvector = rawControllerPos;
+					controllers[0].deviceIndex = iDevice;
+					controllers[0].rawvector = rawControllerPos;
                     controllers[0].raworientation = rawControllerQuat;
                     controllers[0].position[0] = rawControllerPos.v[2] * meters_to_units;
                     controllers[0].position[1] = rawControllerPos.v[0] * meters_to_units;
@@ -639,7 +677,8 @@ void VR_UpdateScreenContent()
                 }
                 else
                 {
-                    controllers[1].rawvector = rawControllerPos;
+					controllers[1].deviceIndex = iDevice;
+					controllers[1].rawvector = rawControllerPos;
                     controllers[1].raworientation = rawControllerQuat;
                     controllers[1].position[0] = rawControllerPos.v[2] * meters_to_units;
                     controllers[1].position[1] = rawControllerPos.v[0] * meters_to_units;
@@ -713,34 +752,43 @@ void VR_UpdateScreenContent()
         cl.viewangles[PITCH] = orientation[PITCH];
         cl.viewangles[YAW] = orientation[YAW];
 
-        cl.aimangles[PITCH] = controllers[1].orientation[PITCH] + vr_gunangle.value;
-        cl.aimangles[YAW] = controllers[1].orientation[YAW];
+		cl.aimangles[PITCH] = controllers[1].orientation[PITCH] + vr_gunangle.value * cosf(controllers[1].orientation[ROLL] * M_PI_DIV_180);
+		cl.aimangles[YAW] = controllers[1].orientation[YAW] + vr_gunangle.value * sinf(controllers[1].orientation[ROLL] * M_PI_DIV_180);
         cl.aimangles[ROLL] = controllers[1].orientation[ROLL];
 
+		char msg[1000];
+		sprintf(msg, "(%.02f %.02f %.02f)\n(%.02f %.02f %.02f)",
+			controllers[1].orientation[PITCH],
+			controllers[1].orientation[YAW],
+			controllers[1].orientation[ROLL],
+			cl.aimangles[PITCH],
+			cl.aimangles[YAW],
+			cl.aimangles[ROLL]
+			);
+			SCR_CenterPrint(msg);
+
         // TODO: Add indipendant move angle for offhand controller
-        // TODO: Fix the weird roll bug with the gun viewmodel. Likely connected to using euler angles vs quaternions
         // TODO: Fix shoot origin not being the gun's
 
         // Controller offset vector for the gun viewmodel
-        HmdVector3_t gunOffset = {-5.0,0.0,8.0};
+        vec3_t gunOffset = {0.0f, 8.0f, -5.0f};
+		
+		vec3_t right, up, fwd;
+		AngleVectors(cl.aimangles, fwd, right, up);
 
-        // Convert the gun pitch cvar to a quaternion and rotate the gun offset vector
-        vec3_t gunPitchV3 = { controllers[1].orientation[PITCH] + vr_gunangle.value, controllers[1].orientation[YAW], controllers[1].orientation[ROLL] };
-        HmdQuaternion_t gunPitchQuat = AnglesToHmdQuat(gunPitchV3);
+		vec3_t ofs = { 0, 0, 0 };
 
-        gunOffset = RotateVectorByQuaternion(gunOffset, gunPitchQuat);
-        VectorCopy(gunOffset.v, cl.vmeshoffset)
+		VectorMA(ofs, gunOffset[0], right, ofs);
+		VectorMA(ofs, gunOffset[1], up, ofs);
+		VectorMA(ofs, gunOffset[2], fwd, ofs);
+
+		_VectorCopy(ofs, cl.vmeshoffset);
 
         // Update hand position values
         entity_t *player = &cl_entities[cl.viewentity];
 
-        cl.handpos[0][0] = -controllers[1].position[0] + player->origin[0];
-        cl.handpos[0][1] = -controllers[1].position[1] + player->origin[1];
-        cl.handpos[0][2] = controllers[1].position[2] + player->origin[2] + cl.viewheight;
-
-        cl.handpos[1][0] = -controllers[1].position[0] + player->origin[0];
-        cl.handpos[1][1] = -controllers[1].position[1] + player->origin[1];
-        cl.handpos[1][2] = controllers[1].position[2] + player->origin[2] + cl.viewheight;
+		SetHandPos(0, player);
+		SetHandPos(1, player);
 
         // Update hand rotations
         VectorCopy(controllers[0].orientation, cl.handrot[0])
@@ -1040,4 +1088,41 @@ void VR_SetTrackingSpace(int n)
 {
     if ( n >= 0 || n < 3 )
         IVRCompositor_SetTrackingSpace(VRCompositor(), n);
+}
+
+float GetAxis(VRControllerState_t* state, int axis)
+{
+	float v = axis == 0 ? (state->rAxis[0].x + state->rAxis[2].x) : (state->rAxis[0].y + state->rAxis[2].y);
+	if (fabsf(v) < 0.25f)
+		return 0.0f;
+	return v;
+}
+
+void VR_Move(usercmd_t *cmd)
+{
+	if (!vr_enabled.value)
+		return;
+
+	VRControllerState_t onState, offState;
+	IVRSystem_GetControllerState(VRSystem(), controllers[1].deviceIndex, &onState);
+	IVRSystem_GetControllerState(VRSystem(), controllers[0].deviceIndex, &offState);
+
+	float xMove = GetAxis(&offState, 0);
+	float yMove = GetAxis(&offState, 1);
+
+	cmd->sidemove += (cl_sidespeed.value * xMove);
+	cmd->forwardmove += (cl_forwardspeed.value * yMove);
+
+	float yawMove = GetAxis(&onState, 0);
+
+	vrYaw -= yawMove * host_frametime * 100.0f;
+
+	static bool triggerWasDown = false;
+
+	bool triggerDown = onState.rAxis[1].x > 0.5f;
+	if (triggerDown != triggerWasDown)
+	{
+		Key_Event(K_MOUSE1, triggerDown);
+	}
+	triggerWasDown = triggerDown;
 }

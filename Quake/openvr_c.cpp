@@ -197,12 +197,12 @@ HiddenAreaMesh_t IVRSystem_GetHiddenAreaMesh(IVRSystem * this_, EVREye eEye) {
     return this_->GetHiddenAreaMesh(eEye);
 }
 
-bool IVRSystem_GetControllerState(IVRSystem * this_, TrackedDeviceIndex_t unControllerDeviceIndex, VRControllerState_t * pControllerState, uint32_t unControllerStateSize) {
-    return this_->GetControllerState(unControllerDeviceIndex, pControllerState, unControllerStateSize);
+bool IVRSystem_GetControllerState(IVRSystem * this_, TrackedDeviceIndex_t unControllerDeviceIndex, VRControllerState_t * pControllerState) {
+    return this_->GetControllerState(unControllerDeviceIndex, pControllerState, sizeof(VRControllerState_t));
 }
 
-bool IVRSystem_GetControllerStateWithPose(IVRSystem * this_, ETrackingUniverseOrigin eOrigin, TrackedDeviceIndex_t unControllerDeviceIndex, VRControllerState_t * pControllerState, uint32_t unControllerStateSize, TrackedDevicePose_t * pTrackedDevicePose) {
-    return this_->GetControllerStateWithPose(eOrigin, unControllerDeviceIndex, pControllerState, unControllerStateSize, pTrackedDevicePose);
+bool IVRSystem_GetControllerStateWithPose(IVRSystem * this_, ETrackingUniverseOrigin eOrigin, TrackedDeviceIndex_t unControllerDeviceIndex, VRControllerState_t * pControllerState, TrackedDevicePose_t * pTrackedDevicePose) {
+    return this_->GetControllerStateWithPose(eOrigin, unControllerDeviceIndex, pControllerState, sizeof(VRControllerState_t), pTrackedDevicePose);
 }
 
 void IVRSystem_TriggerHapticPulse(IVRSystem * this_, TrackedDeviceIndex_t unControllerDeviceIndex, uint32_t unAxisId, unsigned short usDurationMicroSec) {
