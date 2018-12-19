@@ -790,9 +790,17 @@ void V_CalcRefdef(void)
     bob = V_CalcBob();
 
     // refresh position
-    VectorCopy(ent->origin, r_refdef.vieworg);
-    r_refdef.vieworg[2] += cl.viewheight + bob;
-
+	if (vr_enabled.value)
+	{
+		extern vec3_t vr_viewOffset;
+		_VectorAdd(ent->origin, vr_viewOffset, r_refdef.vieworg);
+	}
+	else
+	{
+		VectorCopy(ent->origin, r_refdef.vieworg);
+		r_refdef.vieworg[2] += cl.viewheight + bob;
+	}
+    
     // never let it sit exactly on a node line, because a water plane can
     // dissapear when viewed with the eye exactly on it.
     // the server protocol only specifies to 1/16 pixel, so add 1/32 in each axis
@@ -815,7 +823,10 @@ void V_CalcRefdef(void)
         for (i = 0; i < 3; i++)
             r_refdef.vieworg[i] += scr_ofsx.value*forward[i] + scr_ofsy.value*right[i] + scr_ofsz.value*up[i];
 
-    V_BoundOffsets();
+	if (!vr_enabled.value)
+	{
+		V_BoundOffsets();
+	}
 
     // set up gun position
     VectorCopy(cl.aimangles, view->angles);
@@ -825,9 +836,7 @@ void V_CalcRefdef(void)
     // VR controller aiming configuration
     if (vr_enabled.value && vr_aimmode.value == VR_AIMMODE_CONTROLLER)
     {
-        vec3_t finalGunPos;
-        VectorAdd(cl.handpos[1], cl.vmeshoffset, finalGunPos)
-        VectorCopy(finalGunPos, view->origin)
+        VectorAdd(cl.handpos[1], cl.vmeshoffset, view->origin)
     }
     else
     {

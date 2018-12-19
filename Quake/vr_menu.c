@@ -9,6 +9,7 @@ extern cvar_t vr_crosshair_size;
 extern cvar_t vr_crosshair_alpha;
 extern cvar_t vr_aimmode;
 extern cvar_t vr_deadzone;
+extern cvar_t vr_world_scale;
 
 static int	vr_options_cursor = 0;
 

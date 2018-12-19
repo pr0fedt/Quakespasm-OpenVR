@@ -97,6 +97,8 @@ extern refdef_t r_refdef;
 extern vec3_t vright;
 float vrYaw;
 
+vec3_t vr_viewOffset;
+
 IVRSystem *ovrHMD;
 TrackedDevicePose_t ovr_DevicePose[16]; //k_unMaxTrackedDeviceCount
 
@@ -116,7 +118,7 @@ static vec3_t headOrigin;
 // Wolfenstein 3D, DOOM and QUAKE use the same coordinate/unit system:
 // 8 foot (96 inch) height wall == 64 units, 1.5 inches per pixel unit
 // 1.0 pixel unit / 1.5 inch == 0.666666 pixel units per inch
-static const float meters_to_units = 1.0f / (1.5f * 0.0254f);
+#define meters_to_units (vr_world_scale.value / (1.5f * 0.0254f))
 
 extern cvar_t gl_farclip;
 extern int glwidth, glheight;
@@ -132,7 +134,8 @@ cvar_t vr_aimmode = { "vr_aimmode","7", CVAR_ARCHIVE };
 cvar_t vr_deadzone = { "vr_deadzone","30",CVAR_ARCHIVE };
 cvar_t vr_viewkick = { "vr_viewkick", "0", CVAR_NONE };
 cvar_t vr_lefthanded = { "vr_lefthanded", "0", CVAR_NONE };
-cvar_t vr_gunangle = { "vr_gunangle", "32", CVAR_NONE };
+cvar_t vr_gunangle = { "vr_gunangle", "32", CVAR_ARCHIVE };
+cvar_t vr_world_scale = { "vr_world_scale", "0.75", CVAR_ARCHIVE };
 
 
 static qboolean InitOpenGLExtensions()
@@ -452,8 +455,9 @@ void VID_VR_Init()
     Cvar_RegisterVariable(&vr_aimmode);
     Cvar_RegisterVariable(&vr_deadzone);
     Cvar_RegisterVariable(&vr_lefthanded);
-    Cvar_RegisterVariable(&vr_gunangle);
-    Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
+	Cvar_RegisterVariable(&vr_gunangle);
+	Cvar_RegisterVariable(&vr_world_scale);
+	Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
 
     // Sickness stuff
     Cvar_RegisterVariable(&vr_viewkick);
@@ -502,7 +506,7 @@ qboolean VR_Enable()
         eyes[i].fov_y = (atan(-UpTan) + atan(DownTan)) / M_PI_DIV_180;
     }
 
-    VR_SetTrackingSpace(0);    // Put us into seated tracking position
+    //VR_SetTrackingSpace(0);    // Put us into seated tracking position
     VR_ResetOrientation();     // Recenter the HMD
 
     wglSwapIntervalEXT(0); // Disable V-Sync
@@ -585,7 +589,7 @@ void SetHandPos(int index, entity_t *player)
 	
 	cl.handpos[index][0] = -headLocal[0] + player->origin[0];
 	cl.handpos[index][1] = -headLocal[1] + player->origin[1];
-	cl.handpos[index][2] = headLocal[2] + player->origin[2] + cl.viewheight;
+	cl.handpos[index][2] = headLocal[2] + player->origin[2];
 }
 
 void VR_UpdateScreenContent()
@@ -624,6 +628,8 @@ void VR_UpdateScreenContent()
 
 			leyePos = RotateVectorByQuaternion(leyePos, headQuat);
             reyePos = RotateVectorByQuaternion(reyePos, headQuat);
+
+			HmdVec3RotateY(&headPos, -vrYaw * M_PI_DIV_180);
 
 			HmdVec3RotateY(&leyePos, -vrYaw * M_PI_DIV_180);
 			HmdVec3RotateY(&reyePos, -vrYaw * M_PI_DIV_180);
@@ -775,9 +781,19 @@ void VR_UpdateScreenContent()
     VectorCopy(cl.viewangles, r_refdef.viewangles);
     VectorCopy(cl.aimangles, r_refdef.aimangles);
 
-    // Render the scene for each eye into their FBOs
+	// Render the scene for each eye into their FBOs
     for (i = 0; i < 2; i++) {
         current_eye = &eyes[i];
+
+		vec3_t temp, orientation;
+
+		// We need to scale the view offset position to quake units and rotate it by the current input angles (viewangle - eye orientation)
+		QuatToYawPitchRoll(current_eye->orientation, orientation);
+		temp[0] = -current_eye->position.v[2] * meters_to_units; // X
+		temp[1] = -current_eye->position.v[0] * meters_to_units; // Y
+		temp[2] = current_eye->position.v[1] * meters_to_units;  // Z
+		Vec3RotateZ(temp, (r_refdef.viewangles[YAW] - orientation[YAW])*M_PI_DIV_180, vr_viewOffset);
+
         RenderScreenForCurrentEye_OVR();
     }
     
@@ -789,19 +805,10 @@ void VR_UpdateScreenContent()
 }
 
 void VR_SetMatrices() {
-    vec3_t temp, orientation, position;
     HmdMatrix44_t projection;
 
     // Calculate HMD projection matrix and view offset position
     projection = TransposeMatrix(IVRSystem_GetProjectionMatrix(ovrHMD, current_eye->eye, 4.f, gl_farclip.value));
-
-    // We need to scale the view offset position to quake units and rotate it by the current input angles (viewangle - eye orientation)
-    QuatToYawPitchRoll(current_eye->orientation, orientation);
-    temp[0] = -current_eye->position.v[2] * meters_to_units; // X
-    temp[1] = -current_eye->position.v[0] * meters_to_units; // Y
-    temp[2] = current_eye->position.v[1] * meters_to_units;  // Z
-    Vec3RotateZ(temp, (r_refdef.viewangles[YAW] - orientation[YAW])*M_PI_DIV_180, position);
-
 
     // Set OpenGL projection and view matrices
     glMatrixMode(GL_PROJECTION);
@@ -817,7 +824,7 @@ void VR_SetMatrices() {
 	glRotatef(-r_refdef.viewangles[PITCH], 0, 1, 0);
 	glRotatef(-r_refdef.viewangles[YAW], 0, 0, 1);
 
-    glTranslatef(-r_refdef.vieworg[0] - position[0], -r_refdef.vieworg[1] - position[1], -r_refdef.vieworg[2] - position[2]);
+    glTranslatef(-r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
 }
 
 void VR_AddOrientationToViewAngles(vec3_t angles)
@@ -1050,7 +1057,7 @@ void VR_ResetOrientation()
     cl.aimangles[YAW] = cl.viewangles[YAW];
     cl.aimangles[PITCH] = cl.viewangles[PITCH];
     if (vr_enabled.value) {
-        IVRSystem_ResetSeatedZeroPose(ovrHMD);
+        //IVRSystem_ResetSeatedZeroPose(ovrHMD);
         VectorCopy(cl.aimangles, lastAim);
     }
 }
