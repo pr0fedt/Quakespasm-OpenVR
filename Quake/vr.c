@@ -752,20 +752,15 @@ void VR_UpdateScreenContent()
         cl.viewangles[PITCH] = orientation[PITCH];
         cl.viewangles[YAW] = orientation[YAW];
 
-		cl.aimangles[PITCH] = controllers[1].orientation[PITCH] + vr_gunangle.value * cosf(controllers[1].orientation[ROLL] * M_PI_DIV_180);
-		cl.aimangles[YAW] = controllers[1].orientation[YAW] + vr_gunangle.value * sinf(controllers[1].orientation[ROLL] * M_PI_DIV_180);
-        cl.aimangles[ROLL] = controllers[1].orientation[ROLL];
+		vec3_t contMat[3], gunMat[3];
 
-		char msg[1000];
-		sprintf(msg, "(%.02f %.02f %.02f)\n(%.02f %.02f %.02f)",
-			controllers[1].orientation[PITCH],
-			controllers[1].orientation[YAW],
-			controllers[1].orientation[ROLL],
-			cl.aimangles[PITCH],
-			cl.aimangles[YAW],
-			cl.aimangles[ROLL]
-			);
-			SCR_CenterPrint(msg);
+		RotMatFromAngleVector(controllers[1].orientation, contMat);
+		CreateRotMat(0, vr_gunangle.value, gunMat);
+
+		vec3_t mat[3];
+		R_ConcatRotations(gunMat, contMat, mat);
+
+		AngleVectorFromRotMat(mat, cl.aimangles);
 
         // TODO: Add indipendant move angle for offhand controller
         // TODO: Fix shoot origin not being the gun's
@@ -773,14 +768,11 @@ void VR_UpdateScreenContent()
         // Controller offset vector for the gun viewmodel
         vec3_t gunOffset = {0.0f, 8.0f, -5.0f};
 		
-		vec3_t right, up, fwd;
-		AngleVectors(cl.aimangles, fwd, right, up);
-
 		vec3_t ofs = { 0, 0, 0 };
 
-		VectorMA(ofs, gunOffset[0], right, ofs);
-		VectorMA(ofs, gunOffset[1], up, ofs);
-		VectorMA(ofs, gunOffset[2], fwd, ofs);
+		VectorMA(ofs, gunOffset[0], mat[1], ofs);
+		VectorMA(ofs, gunOffset[1], mat[2], ofs);
+		VectorMA(ofs, gunOffset[2], mat[0], ofs);
 
 		_VectorCopy(ofs, cl.vmeshoffset);
 
