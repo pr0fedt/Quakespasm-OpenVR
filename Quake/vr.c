@@ -35,8 +35,9 @@ typedef struct {
 } vr_eye_t;
 
 typedef struct {
-	int deviceIndex;
-    vec3_t position;
+	VRControllerState_t state;
+	VRControllerState_t lastState;
+	vec3_t position;
     vec3_t orientation;
     HmdVector3_t rawvector;
     HmdQuaternion_t raworientation;
@@ -638,54 +639,32 @@ void VR_UpdateScreenContent()
             HmdVector3_t rawControllerPos = Matrix34ToVector(ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
 			HmdQuaternion_t rawControllerQuat = Matrix34ToQuaternion(ovr_DevicePose[iDevice].mDeviceToAbsoluteTracking);
 
+			int controllerIndex = -1;
+
             if (IVRSystem_GetControllerRoleForTrackedDeviceIndex(ovrHMD, iDevice) == TrackedControllerRole_LeftHand)
             {
-                if (vr_lefthanded.value == true)
-                {
-					// Swap controller values for our southpaw players
-					controllers[1].deviceIndex = iDevice;
-                    controllers[1].rawvector = rawControllerPos;
-                    controllers[1].raworientation = rawControllerQuat;
-                    controllers[1].position[0] = rawControllerPos.v[2];
-                    controllers[1].position[1] = rawControllerPos.v[0];
-                    controllers[1].position[2] = rawControllerPos.v[1];
-                    QuatToYawPitchRoll(rawControllerQuat, controllers[1].orientation);
-                }
-                else
-                {
-					controllers[0].deviceIndex = iDevice;
-					controllers[0].rawvector = rawControllerPos;
-                    controllers[0].raworientation = rawControllerQuat;
-                    controllers[0].position[0] = rawControllerPos.v[2];
-                    controllers[0].position[1] = rawControllerPos.v[0];
-                    controllers[0].position[2] = rawControllerPos.v[1];
-                    QuatToYawPitchRoll(rawControllerQuat, controllers[0].orientation);
-                }
+				// Swap controller values for our southpaw players
+				controllerIndex = vr_lefthanded.value ? 1 : 0;
             }
             else if (IVRSystem_GetControllerRoleForTrackedDeviceIndex(ovrHMD, iDevice) == TrackedControllerRole_RightHand)
             {
-                if (vr_lefthanded.value == true)
-                {
-                    // Swap controller values for our southpaw players
-					controllers[0].deviceIndex = iDevice;
-					controllers[0].rawvector = rawControllerPos;
-                    controllers[0].raworientation = rawControllerQuat;
-                    controllers[0].position[0] = rawControllerPos.v[2] * meters_to_units;
-                    controllers[0].position[1] = rawControllerPos.v[0] * meters_to_units;
-                    controllers[0].position[2] = rawControllerPos.v[1] * meters_to_units;
-                    QuatToYawPitchRoll(rawControllerQuat, controllers[0].orientation);
-                }
-                else
-                {
-					controllers[1].deviceIndex = iDevice;
-					controllers[1].rawvector = rawControllerPos;
-                    controllers[1].raworientation = rawControllerQuat;
-                    controllers[1].position[0] = rawControllerPos.v[2] * meters_to_units;
-                    controllers[1].position[1] = rawControllerPos.v[0] * meters_to_units;
-                    controllers[1].position[2] = rawControllerPos.v[1] * meters_to_units;
-                    QuatToYawPitchRoll(rawControllerQuat, controllers[1].orientation);
-                }
-            }
+				// Swap controller values for our southpaw players
+				controllerIndex = vr_lefthanded.value ? 0 : 1;
+			}
+
+			if (controllerIndex != -1)
+			{
+				vr_controller* controller = &controllers[controllerIndex];
+				
+				controller->lastState = controller->state;
+				IVRSystem_GetControllerState(VRSystem(), iDevice, &controller->state);
+				controller->rawvector = rawControllerPos;
+				controller->raworientation = rawControllerQuat;
+				controller->position[0] = rawControllerPos.v[2] * meters_to_units;
+				controller->position[1] = rawControllerPos.v[0] * meters_to_units;
+				controller->position[2] = rawControllerPos.v[1] * meters_to_units;
+				QuatToYawPitchRoll(rawControllerQuat, controller->orientation);
+			}
         }
     }
 
@@ -1090,31 +1069,79 @@ float GetAxis(VRControllerState_t* state, int axis)
 	return v;
 }
 
+void DoKey(vr_controller* controller, EVRButtonId vrButton, int quakeKey)
+{
+	bool wasDown = (controller->lastState.ulButtonPressed & ButtonMaskFromId(vrButton)) != 0;
+	bool isDown = (controller->state.ulButtonPressed & ButtonMaskFromId(vrButton)) != 0;
+	if (isDown != wasDown)
+	{
+		Key_Event(quakeKey, isDown);
+	}
+}
+
+void DoTrigger(vr_controller* controller, int quakeKey)
+{
+	bool triggerWasDown = controller->lastState.rAxis[1].x > 0.5f;
+	bool triggerDown = controller->state.rAxis[1].x > 0.5f;
+	if (triggerDown != triggerWasDown)
+	{
+		Key_Event(quakeKey, triggerDown);
+	}
+}
+
+void DoAxis(vr_controller* controller, int axis, int quakeKeyNeg, int quakeKeyPos)
+{
+	float lastVal = GetAxis(&controller->lastState, axis);
+	float val = GetAxis(&controller->state, axis);
+
+	bool posWasDown = lastVal > 0.0f;
+	bool posDown = val > 0.0f;
+	if (posDown != posWasDown)
+	{
+		Key_Event(quakeKeyPos, posDown);
+	}
+
+	bool negWasDown = lastVal < 0.0f;
+	bool negDown = val < 0.0f;
+	if (negDown != negWasDown)
+	{
+		Key_Event(quakeKeyNeg, negDown);
+	}
+}
+
 void VR_Move(usercmd_t *cmd)
 {
 	if (!vr_enabled.value)
 		return;
-
-	VRControllerState_t onState, offState;
-	IVRSystem_GetControllerState(VRSystem(), controllers[1].deviceIndex, &onState);
-	IVRSystem_GetControllerState(VRSystem(), controllers[0].deviceIndex, &offState);
-
-	float xMove = GetAxis(&offState, 0);
-	float yMove = GetAxis(&offState, 1);
-
-	cmd->sidemove += (cl_sidespeed.value * xMove);
-	cmd->forwardmove += (cl_forwardspeed.value * yMove);
-
-	float yawMove = GetAxis(&onState, 0);
-
-	vrYaw -= yawMove * host_frametime * 100.0f;
-
-	static bool triggerWasDown = false;
-
-	bool triggerDown = onState.rAxis[1].x > 0.5f;
-	if (triggerDown != triggerWasDown)
+	
+	DoKey(&controllers[1], k_EButton_ApplicationMenu, K_ESCAPE);
+	if (key_dest == key_menu)
 	{
-		Key_Event(K_MOUSE1, triggerDown);
+		for (int i = 0; i < 2; i++)
+		{
+			DoAxis(&controllers[i], 0, K_LEFTARROW, K_RIGHTARROW);
+			DoAxis(&controllers[i], 1, K_DOWNARROW, K_UPARROW);
+			DoTrigger(&controllers[i], K_ENTER);
+			DoKey(&controllers[i], k_EButton_Grip, K_BBUTTON);
+		}
 	}
-	triggerWasDown = triggerDown;
+	else
+	{
+		DoTrigger(&controllers[1], K_MOUSE1);
+		
+		float xMove = GetAxis(&controllers[0].state, 0);
+		float yMove = GetAxis(&controllers[0].state, 1);
+
+		cmd->sidemove += (cl_sidespeed.value * xMove);
+		cmd->forwardmove += (cl_forwardspeed.value * yMove);
+
+		float yawMove = GetAxis(&controllers[1].state, 0);
+
+		vrYaw -= yawMove * host_frametime * 100.0f;
+
+		DoTrigger(&controllers[0], K_SPACE);
+
+		DoKey(&controllers[0], k_EButton_Grip, K_MWHEELUP);
+		DoKey(&controllers[1], k_EButton_Grip, K_MWHEELDOWN);
+	}
 }
