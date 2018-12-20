@@ -438,7 +438,114 @@ static void VR_Deadzone_f(cvar_t *var)
         Cvar_SetValueQuick(&vr_deadzone, deadzone);
 }
 
+//Weapon scale/position stuff
+#define MAX_WEAPONS 20 //not sure what this number should actually be...
+#define VARS_PER_WEAPON 5
 
+cvar_t vr_weapon_offset[MAX_WEAPONS * VARS_PER_WEAPON];
+
+typedef struct 
+{
+	aliashdr_t* hdr;
+	vec3_t scale;
+	vec3_t scale_origin;
+	int cvarId;
+	struct InitialWeaponState* next;
+} InitialWeaponState;
+
+static InitialWeaponState* initialStates;
+
+void Mod_Weapon(const char* name, aliashdr_t* hdr)
+{
+	InitialWeaponState* state = initialStates;
+	while (state && state->hdr != hdr)
+	{
+		state = state->next;
+	}
+	if (!state)
+	{
+		state = (InitialWeaponState*)malloc(sizeof(InitialWeaponState));
+		state->next = initialStates;
+		initialStates = state;
+
+		state->hdr = hdr;
+		_VectorCopy(hdr->scale_origin, state->scale_origin);
+		_VectorCopy(hdr->scale, state->scale);
+		state->cvarId = -1;
+
+		for (int i = 0; i < MAX_WEAPONS; i++)
+		{
+			if (!strcmp(vr_weapon_offset[i*VARS_PER_WEAPON + 4].string, name))
+			{
+				state->cvarId = i;
+				break;
+			}
+		}
+		if (state->cvarId == -1)
+		{
+			Con_Printf("No VR offset for weapon: %s \n", name);
+		}
+	}
+
+	if (state->cvarId != -1)
+	{
+		VectorScale(state->scale, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 3].value, hdr->scale);
+
+		vec3_t ofs = { vr_weapon_offset[state->cvarId * VARS_PER_WEAPON].value, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 1].value, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 2].value };
+
+		VectorAdd(state->scale_origin, ofs, hdr->scale_origin);
+	}
+}
+
+char* CopyWithNumeral(const char* str, int i)
+{
+	int len = strlen(str);
+	char* ret = malloc(len+1);
+	strcpy(ret, str);
+	ret[len - 1] = '0'+(i % 10);
+	ret[len - 2] = '0'+(i / 10);
+	return ret;
+}
+
+void InitWeaponCVar(cvar_t* cvar, const char* name, int i, const char* value)
+{
+	cvar->name = CopyWithNumeral(name, i + 1);
+	cvar->string = value;
+	cvar->flags = CVAR_NONE;
+	Cvar_RegisterVariable(cvar);
+}
+
+void InitWeaponCVars(int i, const char* id, const char* offsetX, const char* offsetY, const char* offsetZ, const char* scale)
+{
+	const char* nameOffsetX = "vr_wofs_x_nn";
+	const char* nameOffsetY = "vr_wofs_y_nn";
+	const char* nameOffsetZ = "vr_wofs_z_nn";
+	const char* nameScale = "vr_wofs_scale_nn";
+	const char* nameID = "vr_wofs_id_nn";
+	InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON], nameOffsetX, i, offsetX);
+	InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 1], nameOffsetY, i, offsetY);
+	InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 2], nameOffsetZ, i, offsetZ);
+	InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 3], nameScale, i, scale);
+	InitWeaponCVar(&vr_weapon_offset[i * VARS_PER_WEAPON + 4], nameID, i, id);
+}
+
+void InitAllWeaponCVars()
+{
+	int i = 0;
+	//vanilla quake weapons
+	InitWeaponCVars(i++, "progs/v_axe.mdl", "-4", "24", "37", "0.33");
+	InitWeaponCVars(i++, "progs/v_shot.mdl", "1.5", "1", "10", "0.5"); //gun
+	InitWeaponCVars(i++, "progs/v_shot2.mdl", "3.5", "1", "10", "0.5"); //shotgun
+	InitWeaponCVars(i++, "progs/v_nail.mdl", "-5", "3", "15", "0.5"); //nailgun
+	InitWeaponCVars(i++, "progs/v_nail2.mdl", "0", "3", "19`", "0.5"); //supernailgun
+	InitWeaponCVars(i++, "progs/v_rock.mdl", "10", "1.5", "13", "0.5"); //grenade
+	InitWeaponCVars(i++, "progs/v_rock2.mdl", "10", "7", "19", "0.5"); //rocket
+	InitWeaponCVars(i++, "progs/v_light.mdl", "3", "4", "13", "0.5"); //lightning
+	while (i < MAX_WEAPONS)
+	{
+		InitWeaponCVars(i++, "-1", "1.5", "1", "10", "0.5");
+	}
+}
 
 // ----------------------------------------------------------------------------
 // Public vars and functions
@@ -458,6 +565,8 @@ void VID_VR_Init()
 	Cvar_RegisterVariable(&vr_gunangle);
 	Cvar_RegisterVariable(&vr_world_scale);
 	Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
+
+	InitAllWeaponCVars();
 
     // Sickness stuff
     Cvar_RegisterVariable(&vr_viewkick);
@@ -511,7 +620,7 @@ qboolean VR_Enable()
 
     wglSwapIntervalEXT(0); // Disable V-Sync
 
-    Cbuf_AddText ("exec vr_autoexec.cfg\n"); // Load the vr autosec config file incase the user has settings they want
+	Cbuf_AddText ("exec vr_autoexec.cfg\n"); // Load the vr autosec config file incase the user has settings they want
 
     attempt_to_refocus_retry = 900; // Try to refocus our for the first 900 frames :/
     vr_initialized = true;
@@ -750,19 +859,14 @@ void VR_UpdateScreenContent()
         // TODO: Add indipendant move angle for offhand controller
         // TODO: Fix shoot origin not being the gun's
 
-        // Controller offset vector for the gun viewmodel
-        vec3_t gunOffset = {0.0f, 8.0f, -5.0f};
-		
-		vec3_t ofs = { 0, 0, 0 };
-
-		VectorMA(ofs, gunOffset[0], mat[1], ofs);
-		VectorMA(ofs, gunOffset[1], mat[2], ofs);
-		VectorMA(ofs, gunOffset[2], mat[0], ofs);
-
-		_VectorCopy(ofs, cl.vmeshoffset);
-
         // Update hand position values
         entity_t *player = &cl_entities[cl.viewentity];
+
+		if (cl.viewent.model)
+		{
+			aliashdr_t* hdr = (aliashdr_t *)Mod_Extradata(cl.viewent.model);
+			Mod_Weapon(cl.viewent.model->name, hdr);
+		}
 
 		SetHandPos(0, player);
 		SetHandPos(1, player);
@@ -1121,6 +1225,11 @@ void VR_Move(usercmd_t *cmd)
 	if (!vr_enabled.value)
 		return;
 	
+	DoTrigger(&controllers[0], K_SPACE);
+
+	DoKey(&controllers[0], k_EButton_Grip, K_MWHEELUP);
+	DoKey(&controllers[1], k_EButton_Grip, K_MWHEELDOWN);
+
 	DoKey(&controllers[1], k_EButton_ApplicationMenu, K_ESCAPE);
 	if (key_dest == key_menu)
 	{
@@ -1129,7 +1238,6 @@ void VR_Move(usercmd_t *cmd)
 			DoAxis(&controllers[i], 0, K_LEFTARROW, K_RIGHTARROW);
 			DoAxis(&controllers[i], 1, K_DOWNARROW, K_UPARROW);
 			DoTrigger(&controllers[i], K_ENTER);
-			DoKey(&controllers[i], k_EButton_Grip, K_BBUTTON);
 		}
 	}
 	else
@@ -1145,10 +1253,5 @@ void VR_Move(usercmd_t *cmd)
 		float yawMove = GetAxis(&controllers[1].state, 0);
 
 		vrYaw -= yawMove * host_frametime * 100.0f;
-
-		DoTrigger(&controllers[0], K_SPACE);
-
-		DoKey(&controllers[0], k_EButton_Grip, K_MWHEELUP);
-		DoKey(&controllers[1], k_EButton_Grip, K_MWHEELDOWN);
 	}
 }
