@@ -847,14 +847,17 @@ void VR_UpdateScreenContent()
         cl.viewangles[YAW] = orientation[YAW];
 
 		vec3_t contMat[3], gunMat[3];
-
-		RotMatFromAngleVector(controllers[1].orientation, contMat);
 		CreateRotMat(0, vr_gunangle.value, gunMat);
 
-		vec3_t mat[3];
-		R_ConcatRotations(gunMat, contMat, mat);
+		for (int i = 0; i < 2; i++)
+		{
+			RotMatFromAngleVector(controllers[i].orientation, contMat);
 
-		AngleVectorFromRotMat(mat, cl.aimangles);
+			vec3_t mat[3];
+			R_ConcatRotations(gunMat, contMat, mat);
+
+			AngleVectorFromRotMat(mat, cl.handrot[i]);
+		}
 
         // TODO: Add indipendant move angle for offhand controller
         // TODO: Fix shoot origin not being the gun's
@@ -871,9 +874,7 @@ void VR_UpdateScreenContent()
 		SetHandPos(0, player);
 		SetHandPos(1, player);
 
-        // Update hand rotations
-        VectorCopy(controllers[0].orientation, cl.handrot[0])
-        VectorCopy(controllers[1].orientation, cl.handrot[1])
+		VectorCopy(cl.handrot[1], cl.aimangles);
 
         break;
     }
@@ -967,15 +968,18 @@ void VR_ShowCrosshair()
 
     // calc the line and draw
     // TODO: Make the laser align correctly
-    if (vr_aimmode.value == VR_AIMMODE_CONTROLLER)
-        VectorCopy(cl.handpos[1], start)
+	if (vr_aimmode.value == VR_AIMMODE_CONTROLLER)
+	{
+		VectorCopy(cl.handpos[1], start)
+		AngleVectors(cl.handrot[1], forward, right, up);
+	}
     else
     {
         VectorCopy(cl.viewent.origin, start);
         start[2] -= cl.viewheight - 10;
-    }
+		AngleVectors(cl.aimangles, forward, right, up);
+	}
 
-    AngleVectors(cl.aimangles, forward, right, up);
 
     switch ((int)vr_crosshair.value)
     {
@@ -1047,15 +1051,28 @@ void VR_Draw2D()
     glDisable(GL_DEPTH_TEST); // prevents drawing sprites on sprites from interferring with one another
     glEnable(GL_BLEND);
 
-    // TODO: Make the menus' position sperate from the right hand. Centered on last view dir?
-    VectorCopy(r_refdef.aimangles, menu_angles)
+	if (vr_aimmode.value == VR_AIMMODE_CONTROLLER)
+	{
+		AngleVectors(cl.handrot[1], forward, right, up);
 
-        if (vr_aimmode.value == VR_AIMMODE_HEAD_MYAW || vr_aimmode.value == VR_AIMMODE_HEAD_MYAW_MPITCH)
-            menu_angles[PITCH] = 0;
+		VectorCopy(cl.handrot[1], menu_angles)
 
-    AngleVectors(menu_angles, forward, right, up);
+		AngleVectors(menu_angles, forward, right, up);
 
-    VectorMA(r_refdef.vieworg, 48, forward, target);
+		VectorMA(cl.handpos[1], 48, forward, target);
+	}
+	else
+	{
+		// TODO: Make the menus' position sperate from the right hand. Centered on last view dir?
+		VectorCopy(r_refdef.aimangles, menu_angles)
+
+		if (vr_aimmode.value == VR_AIMMODE_HEAD_MYAW || vr_aimmode.value == VR_AIMMODE_HEAD_MYAW_MPITCH)
+			menu_angles[PITCH] = 0;
+
+		AngleVectors(menu_angles, forward, right, up);
+
+		VectorMA(r_refdef.vieworg, 48, forward, target);
+	}
 
     glTranslatef(target[0], target[1], target[2]);
     glRotatef(menu_angles[YAW] - 90, 0, 0, 1); // rotate around z
@@ -1124,17 +1141,28 @@ void VR_DrawSbar()
     glPushMatrix();
     glDisable(GL_DEPTH_TEST); // prevents drawing sprites on sprites from interferring with one another
 
-    VectorCopy(cl.aimangles, sbar_angles)
+    
+	if (vr_aimmode.value == VR_AIMMODE_CONTROLLER)
+	{
+		AngleVectors(cl.handrot[1], forward, right, up);
 
-        if (vr_aimmode.value == VR_AIMMODE_HEAD_MYAW || vr_aimmode.value == VR_AIMMODE_HEAD_MYAW_MPITCH)
-            sbar_angles[PITCH] = 0;
+		VectorCopy(cl.handrot[1], sbar_angles)
 
-    AngleVectors(sbar_angles, forward, right, up);
+		AngleVectors(sbar_angles, forward, right, up);
 
-    if (vr_aimmode.value == VR_AIMMODE_CONTROLLER)
-        VectorMA(cl.handpos[0], 1.0, forward, target);
-    else
-        VectorMA(cl.viewent.origin, 1.0, forward, target);
+		VectorMA(cl.handpos[1], -5, right, target);
+	}
+	else
+	{
+		VectorCopy(cl.aimangles, sbar_angles)
+
+		if (vr_aimmode.value == VR_AIMMODE_HEAD_MYAW || vr_aimmode.value == VR_AIMMODE_HEAD_MYAW_MPITCH)
+			sbar_angles[PITCH] = 0;
+
+		AngleVectors(sbar_angles, forward, right, up);
+
+		VectorMA(cl.viewent.origin, 1.0, forward, target);
+	}
 
     glTranslatef(target[0], target[1], target[2]);
     glRotatef(sbar_angles[YAW] - 90, 0, 0, 1); // rotate around z
@@ -1244,11 +1272,19 @@ void VR_Move(usercmd_t *cmd)
 	{
 		DoTrigger(&controllers[1], K_MOUSE1);
 		
-		float xMove = GetAxis(&controllers[0].state, 0);
-		float yMove = GetAxis(&controllers[0].state, 1);
+		vec3_t lfwd, lright, lup;
+		AngleVectors(cl.handrot[0], lfwd, lright, lup);
 
-		cmd->sidemove += (cl_sidespeed.value * xMove);
-		cmd->forwardmove += (cl_forwardspeed.value * yMove);
+		vec3_t move = { 0, 0, 0 };
+		VectorMA(move, GetAxis(&controllers[0].state, 0), lright, move);
+		VectorMA(move, GetAxis(&controllers[0].state, 1), lfwd, move);
+
+		vec3_t vfwd, vright, vup;
+		AngleVectors(cl.aimangles, vfwd, vright, vup);
+
+		cmd->sidemove += cl_sidespeed.value * DotProduct(move, vright);
+		cmd->forwardmove += cl_forwardspeed.value * DotProduct(move, vfwd);
+		cmd->upmove += cl_upspeed.value * DotProduct(move, vup);
 
 		float yawMove = GetAxis(&controllers[1].state, 0);
 

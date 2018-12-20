@@ -598,9 +598,9 @@ void CalcGunAngle (void)
     // Skip everything if we're doing VR Controller aiming.
     if (vr_enabled.value && vr_aimmode.value == VR_AIMMODE_CONTROLLER)
     {
-        cl.viewent.angles[YAW] = r_refdef.aimangles[YAW];
-        cl.viewent.angles[PITCH] = -(r_refdef.aimangles[PITCH]);
-        cl.viewent.angles[ROLL] = r_refdef.aimangles[ROLL];
+        cl.viewent.angles[YAW] = cl.handrot[1][YAW];
+        cl.viewent.angles[PITCH] = -(cl.handrot[1][PITCH]);
+        cl.viewent.angles[ROLL] = cl.handrot[1][ROLL];
         return;
     }
 
@@ -781,12 +781,12 @@ void V_CalcRefdef(void)
     view = &cl.viewent;
 
 
-    // transform the view offset by the model's matrix to get the offset from
-    // model origin for the view
-    ent->angles[YAW] = cl.viewangles[YAW];	// the model should face the view dir
-    ent->angles[PITCH] = -cl.viewangles[PITCH];	// the model should face the view dir
+		// transform the view offset by the model's matrix to get the offset from
+		// model origin for the view
+		ent->angles[YAW] = cl.viewangles[YAW];	// the model should face the view dir
+		ent->angles[PITCH] = -cl.viewangles[PITCH];	// the model should face the view dir
 
-    bob = V_CalcBob();
+		bob = V_CalcBob();
 
     // refresh position
 	if (vr_enabled.value)
