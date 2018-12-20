@@ -598,7 +598,6 @@ void CalcGunAngle (void)
     // Skip everything if we're doing VR Controller aiming.
     if (vr_enabled.value && vr_aimmode.value == VR_AIMMODE_CONTROLLER)
     {
-        // We should be using quaternons somewhere because otherwise roll is ALL OVER THE PLACE
         cl.viewent.angles[YAW] = r_refdef.aimangles[YAW];
         cl.viewent.angles[PITCH] = -(r_refdef.aimangles[PITCH]);
         cl.viewent.angles[ROLL] = r_refdef.aimangles[ROLL];

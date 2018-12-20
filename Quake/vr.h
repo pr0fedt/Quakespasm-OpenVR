@@ -32,4 +32,6 @@ void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_SetTrackingSpace(int n);
 
+extern cvar_t vr_enabled;
+
 #endif
