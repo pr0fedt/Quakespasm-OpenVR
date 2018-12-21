@@ -701,6 +701,8 @@ void SetHandPos(int index, entity_t *player)
 	cl.handpos[index][2] = headLocal[2] + player->origin[2];
 }
 
+void IdentifyAxes(int device);
+
 void VR_UpdateScreenContent()
 {
     int i;
@@ -771,6 +773,8 @@ void VR_UpdateScreenContent()
 			{
 				vr_controller* controller = &controllers[controllerIndex];
 				
+				IdentifyAxes(iDevice);
+
 				controller->lastState = controller->state;
 				IVRSystem_GetControllerState(VRSystem(), iDevice, &controller->state);
 				controller->rawvector = rawControllerPos;
@@ -1200,9 +1204,48 @@ void VR_SetTrackingSpace(int n)
         IVRCompositor_SetTrackingSpace(VRCompositor(), n);
 }
 
+int axisTrackpad = -1;
+int axisJoystick = -1;
+int axisTrigger = -1;
+bool identified = false;
+
+void IdentifyAxes(int device)
+{
+	if (identified)
+		return;
+	
+	for (int i = 0; i < k_unControllerStateAxisCount; i++)
+	{
+		switch (IVRSystem_GetInt32TrackedDeviceProperty(VRSystem(), device, Prop_Axis0Type_Int32 + i, 0))
+		{
+		case k_eControllerAxis_TrackPad:
+			axisTrackpad = i;
+			break;
+		case k_eControllerAxis_Joystick:
+			axisJoystick = i;
+			break;
+		case k_eControllerAxis_Trigger:
+			axisTrigger = i;
+			break;
+		}
+	}
+
+	identified = true;
+}
+
 float GetAxis(VRControllerState_t* state, int axis)
 {
-	float v = axis == 0 ? (state->rAxis[0].x + state->rAxis[2].x) : (state->rAxis[0].y + state->rAxis[2].y);
+	float v = 0;
+	if (axis == 0)
+	{
+		if (axisTrackpad != -1) v += state->rAxis[axisTrackpad].x;
+		if (axisJoystick != -1) v += state->rAxis[axisJoystick].x;
+	}
+	else
+	{
+		if (axisTrackpad != -1) v += state->rAxis[axisTrackpad].y;
+		if (axisJoystick != -1) v += state->rAxis[axisJoystick].y;
+	}
 	if (fabsf(v) < 0.25f)
 		return 0.0f;
 	return v;
@@ -1220,11 +1263,14 @@ void DoKey(vr_controller* controller, EVRButtonId vrButton, int quakeKey)
 
 void DoTrigger(vr_controller* controller, int quakeKey)
 {
-	bool triggerWasDown = controller->lastState.rAxis[1].x > 0.5f;
-	bool triggerDown = controller->state.rAxis[1].x > 0.5f;
-	if (triggerDown != triggerWasDown)
+	if (axisTrigger != -1)
 	{
-		Key_Event(quakeKey, triggerDown);
+		bool triggerWasDown = controller->lastState.rAxis[axisTrigger].x > 0.5f;
+		bool triggerDown = controller->state.rAxis[axisTrigger].x > 0.5f;
+		if (triggerDown != triggerWasDown)
+		{
+			Key_Event(quakeKey, triggerDown);
+		}
 	}
 }
 
@@ -1258,6 +1304,8 @@ void VR_Move(usercmd_t *cmd)
 	DoKey(&controllers[0], k_EButton_Grip, K_MWHEELUP);
 	DoKey(&controllers[1], k_EButton_Grip, K_MWHEELDOWN);
 
+	DoKey(&controllers[0], k_EButton_SteamVR_Touchpad, K_SHIFT);
+
 	DoKey(&controllers[1], k_EButton_ApplicationMenu, K_ESCAPE);
 	if (key_dest == key_menu)
 	{
@@ -1282,9 +1330,19 @@ void VR_Move(usercmd_t *cmd)
 		vec3_t vfwd, vright, vup;
 		AngleVectors(cl.aimangles, vfwd, vright, vup);
 
-		cmd->sidemove += cl_sidespeed.value * DotProduct(move, vright);
+		//Quake run doesn't affect the value of cl_sidespeed.value, so just use forward speed here for consistency
+		cmd->sidemove += cl_forwardspeed.value * DotProduct(move, vright);
 		cmd->forwardmove += cl_forwardspeed.value * DotProduct(move, vfwd);
 		cmd->upmove += cl_upspeed.value * DotProduct(move, vup);
+
+		if (cl_forwardspeed.value > 200 && cl_movespeedkey.value)
+			cmd->forwardmove /= cl_movespeedkey.value;
+		if ((cl_forwardspeed.value > 200) ^ (in_speed.state & 1))
+		{
+			cmd->forwardmove *= cl_movespeedkey.value;
+			cmd->sidemove *= cl_movespeedkey.value;
+			cmd->upmove *= cl_movespeedkey.value;
+		}
 
 		float yawMove = GetAxis(&controllers[1].state, 0);
 
