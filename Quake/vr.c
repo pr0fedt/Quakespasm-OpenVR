@@ -197,23 +197,10 @@ void QuatToYawPitchRoll(HmdQuaternion_t q, vec3_t out) {
     float sqx = q.x*q.x;
     float sqy = q.y*q.y;
     float sqz = q.z*q.z;
-    float unit = sqx + sqy + sqz + sqw; // if normalised is one, otherwise is correction factor
-    float test = q.z*q.y + q.x*q.w;
-    if (test > 0.499*unit) { // singularity at north pole
-        out[YAW] = 2 * atan2(q.x, q.w) / M_PI_DIV_180;
-        out[ROLL] = -M_PI / 2 / M_PI_DIV_180;
-        out[PITCH] = 0;
-    }
-    else if (test < -0.499*unit) { // singularity at south pole
-        out[YAW] = -2 * atan2(q.x, q.w) / M_PI_DIV_180;
-        out[ROLL] = M_PI / 2 / M_PI_DIV_180;
-        out[PITCH] = 0;
-    }
-    else {
-		out[ROLL] = -atan2(2 * (q.x*q.y + q.w*q.z), q.w*q.w - q.x*q.x + q.y*q.y - q.z*q.z) / M_PI_DIV_180;
-		out[PITCH] = -asin(-2 * (q.y*q.z - q.w*q.x)) / M_PI_DIV_180;
-		out[YAW] = atan2(2 * (q.x*q.z + q.w*q.y), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z) / M_PI_DIV_180 + vrYaw;
-    }
+
+	out[ROLL] = -atan2(2 * (q.x*q.y + q.w*q.z), sqw - sqx + sqy - sqz) / M_PI_DIV_180;
+	out[PITCH] = -asin(-2 * (q.y*q.z - q.w*q.x)) / M_PI_DIV_180;
+	out[YAW] = atan2(2 * (q.x*q.z + q.w*q.y), sqw - sqx - sqy + sqz) / M_PI_DIV_180 + vrYaw;
 }
 
 void Vec3RotateZ(vec3_t in, float angle, vec3_t out) {
