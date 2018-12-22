@@ -486,6 +486,10 @@ void CL_RelinkEntities (void)
 				{
 					f = 1;		// assume a teleportation, not a motion
 					ent->lerpflags |= LERP_RESETMOVE; //johnfitz -- don't lerp teleports
+					if (ent == &cl_entities[cl.viewentity])
+					{
+						VR_PushYaw();
+					}
 				}
 			}
 

@@ -1030,6 +1030,7 @@ void CL_ParseServerMessage (void)
 
 		case svc_setview:
 			cl.viewentity = MSG_ReadShort ();
+			VR_PushYaw();
 			break;
 
 		case svc_lightstyle:

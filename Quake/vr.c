@@ -95,7 +95,9 @@ extern void R_RenderScene(void);
 extern int glx, gly, glwidth, glheight;
 extern refdef_t r_refdef;
 extern vec3_t vright;
-float vrYaw;
+
+static float vrYaw;
+static bool readbackYaw;
 
 vec3_t vr_viewOffset;
 
@@ -615,6 +617,12 @@ qboolean VR_Enable()
 }
 
 
+void VR_PushYaw()
+{
+	readbackYaw = 1;
+}
+
+
 void VID_VR_Shutdown() {
     VID_VR_Disable();
 }
@@ -703,6 +711,9 @@ void VR_UpdateScreenContent()
         return;
     }
 
+	// Update hand position values
+	entity_t *player = &cl_entities[cl.viewentity];
+
     w = glwidth;
     h = glheight;
 
@@ -778,7 +789,13 @@ void VR_UpdateScreenContent()
     cl.aimangles[ROLL] = 0.0;
 
     QuatToYawPitchRoll(eyes[1].orientation, orientation);
-    switch ((int)vr_aimmode.value)
+	if (readbackYaw)
+	{
+		vrYaw = cl.viewangles[YAW] - (orientation[YAW] - vrYaw);
+		readbackYaw = 0;
+	}
+	
+	switch ((int)vr_aimmode.value)
     {
         // 1: (Default) Head Aiming; View YAW is mouse+head, PITCH is head
     default:
@@ -852,9 +869,6 @@ void VR_UpdateScreenContent()
 
         // TODO: Add indipendant move angle for offhand controller
         // TODO: Fix shoot origin not being the gun's
-
-        // Update hand position values
-        entity_t *player = &cl_entities[cl.viewentity];
 
 		if (cl.viewent.model)
 		{
