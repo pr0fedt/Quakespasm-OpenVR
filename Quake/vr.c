@@ -1219,13 +1219,13 @@ void IdentifyAxes(int device)
 		switch (IVRSystem_GetInt32TrackedDeviceProperty(VRSystem(), device, Prop_Axis0Type_Int32 + i, 0))
 		{
 		case k_eControllerAxis_TrackPad:
-			axisTrackpad = i;
+			if (axisTrackpad == -1) axisTrackpad = i;
 			break;
 		case k_eControllerAxis_Joystick:
-			axisJoystick = i;
+			if (axisJoystick == -1) axisJoystick = i;
 			break;
 		case k_eControllerAxis_Trigger:
-			axisTrigger = i;
+			if (axisTrigger == -1) axisTrigger = i;
 			break;
 		}
 	}
