@@ -498,17 +498,17 @@ void R_SetupGL (void)
 		GL_SetFrustum(r_fovx, r_fovy); //johnfitz -- use r_fov* vars
 
 	//	glCullFace(GL_BACK); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
-
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-
-		glRotatef(-90, 1, 0, 0);	    // put Z going up
-		glRotatef(90, 0, 0, 1);	    // put Z going up
-		glRotatef(-r_refdef.viewangles[2], 1, 0, 0);
-		glRotatef(-r_refdef.viewangles[0], 0, 1, 0);
-		glRotatef(-r_refdef.viewangles[1], 0, 0, 1);
-		glTranslatef(-r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
 	}
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glRotatef(-90, 1, 0, 0);	    // put Z going up
+	glRotatef(90, 0, 0, 1);	    // put Z going up
+	glRotatef(-r_refdef.viewangles[2], 1, 0, 0);
+	glRotatef(-r_refdef.viewangles[0], 0, 1, 0);
+	glRotatef(-r_refdef.viewangles[1], 0, 0, 1);
+	glTranslatef(-r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
 
 	//
 	// set drawing parms

@@ -926,38 +926,77 @@ void SV_Physics_Client (edict_t	*ent, int num)
 	switch ((int)ent->v.movetype)
 	{
 	case MOVETYPE_NONE:
-		if (!SV_RunThink (ent))
+		if (!SV_RunThink(ent))
 			return;
 		break;
 
 	case MOVETYPE_WALK:
-		if (!SV_RunThink (ent))
+		if (!SV_RunThink(ent))
 			return;
-		if (!SV_CheckWater (ent) && ! ((int)ent->v.flags & FL_WATERJUMP) )
-			SV_AddGravity (ent);
-		SV_CheckStuck (ent);
-		SV_WalkMove (ent);
+		if (!SV_CheckWater(ent) && !((int)ent->v.flags & FL_WATERJUMP))
+			SV_AddGravity(ent);
+		SV_CheckStuck(ent);
+		SV_WalkMove(ent);
+
 		break;
 
 	case MOVETYPE_TOSS:
 	case MOVETYPE_BOUNCE:
-		SV_Physics_Toss (ent);
+		SV_Physics_Toss(ent);
 		break;
 
 	case MOVETYPE_FLY:
-		if (!SV_RunThink (ent))
+		if (!SV_RunThink(ent))
 			return;
-		SV_FlyMove (ent, host_frametime, NULL);
+		SV_FlyMove(ent, host_frametime, NULL);
 		break;
 
 	case MOVETYPE_NOCLIP:
-		if (!SV_RunThink (ent))
+		if (!SV_RunThink(ent))
 			return;
-		VectorMA (ent->v.origin, host_frametime, ent->v.velocity, ent->v.origin);
+		VectorMA(ent->v.origin, host_frametime, ent->v.velocity, ent->v.origin);
 		break;
 
 	default:
-		Sys_Error ("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
+		Sys_Error("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
+	}
+
+	if (num == cl.viewentity && vr_enabled.value)
+	{
+		vec3_t restoreVel;
+		_VectorCopy(ent->v.velocity, restoreVel);
+		extern vec3_t vr_room_scale_move;
+		VectorScale(vr_room_scale_move, 1.0f / host_frametime, ent->v.velocity);
+
+		switch ((int)ent->v.movetype)
+		{
+		case MOVETYPE_NONE:
+			break;
+
+		case MOVETYPE_WALK:
+			ent->v.velocity[2] = -1.0f;
+			SV_CheckStuck(ent);
+			SV_WalkMove(ent);
+
+			break;
+
+		case MOVETYPE_TOSS:
+		case MOVETYPE_BOUNCE:
+			break;
+		
+		case MOVETYPE_FLY:
+			SV_FlyMove(ent, host_frametime, NULL);
+			break;
+
+		case MOVETYPE_NOCLIP:
+			VectorMA(ent->v.origin, host_frametime, ent->v.velocity, ent->v.origin);
+			break;
+
+		default:
+			Sys_Error("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
+		}
+
+		_VectorCopy(restoreVel, ent->v.velocity);
 	}
 
 //

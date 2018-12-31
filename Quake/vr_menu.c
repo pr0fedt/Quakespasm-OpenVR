@@ -74,6 +74,9 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 				case VR_AIMMODE_BLENDED_NOPITCH:
 					value_string = "BLENDED_NOPITCH";
 					break;
+				case VR_AIMMODE_CONTROLLER:
+					value_string = "CONTROLLER";
+					break;
 			}
 			break;
 		case VR_OPTION_DEADZONE:
@@ -111,6 +114,9 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 			break;
 		case VR_OPTION_CROSSHAIR_ALPHA:
 			M_DrawSlider( cx, cy, vr_crosshair_alpha.value );
+			break;
+		case VR_OPTION_WORLD_SCALE:
+			M_DrawSlider(cx, cy, vr_world_scale.value / 2.0f);
 			break;
 	}
 #ifdef _MSC_VER
@@ -184,6 +190,11 @@ static void VR_MenuKeyOption(int key, int option)
 			floatValue = vr_crosshair_alpha.value;
 			floatValue = CLAMP( 0.0f, isLeft ? floatValue - crosshairAlphaDiff : floatValue + crosshairAlphaDiff, 1.0f );
 			Cvar_SetValue( "vr_crosshair_alpha", floatValue );
+			break;
+		case VR_OPTION_WORLD_SCALE:
+			floatValue = vr_world_scale.value;
+			floatValue = CLAMP(0.0f, isLeft ? floatValue - crosshairAlphaDiff : floatValue + crosshairAlphaDiff, 2.0f);
+			Cvar_SetValue("vr_world_scale", floatValue);
 			break;
 	}
 
@@ -294,6 +305,10 @@ static void VR_MenuDraw (void)
 			case VR_OPTION_CROSSHAIR_ALPHA:
 				M_Print( 16, y, "       Crosshair Alpha" );
 				VR_MenuPrintOptionValue( 220, y, i );
+				break;
+			case VR_OPTION_WORLD_SCALE:
+				M_Print(16, y, "       World Scale");
+				VR_MenuPrintOptionValue(220, y, i);
 				break;
 
 			default: break;

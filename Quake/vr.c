@@ -116,6 +116,9 @@ static GLuint mirror_fbo = 0;
 static int attempt_to_refocus_retry = 0;
 
 static vec3_t headOrigin;
+static vec3_t lastHeadOrigin;
+
+vec3_t vr_room_scale_move;
 
 // Wolfenstein 3D, DOOM and QUAKE use the same coordinate/unit system:
 // 8 foot (96 inch) height wall == 64 units, 1.5 inches per pixel unit
@@ -137,8 +140,8 @@ cvar_t vr_deadzone = { "vr_deadzone","30",CVAR_ARCHIVE };
 cvar_t vr_viewkick = { "vr_viewkick", "0", CVAR_NONE };
 cvar_t vr_lefthanded = { "vr_lefthanded", "0", CVAR_NONE };
 cvar_t vr_gunangle = { "vr_gunangle", "32", CVAR_ARCHIVE };
-cvar_t vr_world_scale = { "vr_world_scale", "0.75", CVAR_ARCHIVE };
-
+cvar_t vr_world_scale = { "vr_world_scale", "1.0", CVAR_ARCHIVE };
+cvar_t vr_floor_offset = { "vr_floor_offset", "-16", CVAR_ARCHIVE };
 
 static qboolean InitOpenGLExtensions()
 {
@@ -478,11 +481,14 @@ void Mod_Weapon(const char* name, aliashdr_t* hdr)
 
 	if (state->cvarId != -1)
 	{
-		VectorScale(state->scale, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 3].value, hdr->scale);
+
+		float scaleCorrect = vr_world_scale.value / 0.75f; //initial version had 0.75 default world scale, so weapons reflect that
+		VectorScale(state->scale, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 3].value * scaleCorrect, hdr->scale);
 
 		vec3_t ofs = { vr_weapon_offset[state->cvarId * VARS_PER_WEAPON].value, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 1].value, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 2].value };
 
 		VectorAdd(state->scale_origin, ofs, hdr->scale_origin);
+		VectorScale(hdr->scale_origin, scaleCorrect, hdr->scale_origin);
 	}
 }
 
@@ -553,6 +559,7 @@ void VID_VR_Init()
     Cvar_RegisterVariable(&vr_lefthanded);
 	Cvar_RegisterVariable(&vr_gunangle);
 	Cvar_RegisterVariable(&vr_world_scale);
+	Cvar_RegisterVariable(&vr_floor_offset);
 	Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
 
 	InitAllWeaponCVars();
@@ -604,7 +611,7 @@ qboolean VR_Enable()
         eyes[i].fov_y = (atan(-UpTan) + atan(DownTan)) / M_PI_DIV_180;
     }
 
-    //VR_SetTrackingSpace(0);    // Put us into seated tracking position
+    VR_SetTrackingSpace(TrackingUniverseStanding);    // Put us into standing tracking position
     VR_ResetOrientation();     // Recenter the HMD
 
     wglSwapIntervalEXT(0); // Disable V-Sync
@@ -693,7 +700,7 @@ void SetHandPos(int index, entity_t *player)
 	
 	cl.handpos[index][0] = -headLocal[0] + player->origin[0];
 	cl.handpos[index][1] = -headLocal[1] + player->origin[1];
-	cl.handpos[index][2] = headLocal[2] + player->origin[2];
+	cl.handpos[index][2] = headLocal[2] + player->origin[2] + vr_floor_offset.value;
 }
 
 void IdentifyAxes(int device);
@@ -711,11 +718,10 @@ void VR_UpdateScreenContent()
         return;
     }
 
-	// Update hand position values
-	entity_t *player = &cl_entities[cl.viewentity];
-
     w = glwidth;
     h = glheight;
+
+	entity_t *player = &cl_entities[cl.viewentity];
 
     // Update poses
     IVRCompositor_WaitGetPoses(VRCompositor(), ovr_DevicePose, k_unMaxTrackedDeviceCount, NULL, 0);
@@ -730,6 +736,18 @@ void VR_UpdateScreenContent()
 			headOrigin[0] = headPos.v[2];
 			headOrigin[1] = headPos.v[0];
 			headOrigin[2] = headPos.v[1];
+
+			vec3_t moveInTracking;
+			_VectorSubtract(headOrigin, lastHeadOrigin, moveInTracking);
+			moveInTracking[0] *= -meters_to_units;
+			moveInTracking[1] *= -meters_to_units;
+			moveInTracking[2] = 0;
+			Vec3RotateZ(moveInTracking, vrYaw * M_PI_DIV_180, vr_room_scale_move);
+
+			_VectorCopy(headOrigin, lastHeadOrigin);
+			_VectorSubtract(headOrigin, lastHeadOrigin, headOrigin);
+			headPos.v[0] -= lastHeadOrigin[1];
+			headPos.v[2] -= lastHeadOrigin[0];
 
             HmdQuaternion_t headQuat = Matrix34ToQuaternion(ovr_DevicePose->mDeviceToAbsoluteTracking);
             HmdVector3_t leyePos = Matrix34ToVector(IVRSystem_GetEyeToHeadTransform(ovrHMD, eyes[0].eye));
@@ -777,9 +795,9 @@ void VR_UpdateScreenContent()
 				IVRSystem_GetControllerState(VRSystem(), iDevice, &controller->state);
 				controller->rawvector = rawControllerPos;
 				controller->raworientation = rawControllerQuat;
-				controller->position[0] = rawControllerPos.v[2] * meters_to_units;
-				controller->position[1] = rawControllerPos.v[0] * meters_to_units;
-				controller->position[2] = rawControllerPos.v[1] * meters_to_units;
+				controller->position[0] = (rawControllerPos.v[2] - lastHeadOrigin[0]) * meters_to_units;
+				controller->position[1] = (rawControllerPos.v[0] - lastHeadOrigin[1]) * meters_to_units;
+				controller->position[2] = (rawControllerPos.v[1]) * meters_to_units;
 				QuatToYawPitchRoll(rawControllerQuat, controller->orientation);
 			}
         }
@@ -867,9 +885,6 @@ void VR_UpdateScreenContent()
 			AngleVectorFromRotMat(mat, cl.handrot[i]);
 		}
 
-        // TODO: Add indipendant move angle for offhand controller
-        // TODO: Fix shoot origin not being the gun's
-
 		if (cl.viewent.model)
 		{
 			aliashdr_t* hdr = (aliashdr_t *)Mod_Extradata(cl.viewent.model);
@@ -903,6 +918,7 @@ void VR_UpdateScreenContent()
 		temp[1] = -current_eye->position.v[0] * meters_to_units; // Y
 		temp[2] = current_eye->position.v[1] * meters_to_units;  // Z
 		Vec3RotateZ(temp, (r_refdef.viewangles[YAW] - orientation[YAW])*M_PI_DIV_180, vr_viewOffset);
+		vr_viewOffset[2] += vr_floor_offset.value;
 
         RenderScreenForCurrentEye_OVR();
     }
@@ -915,27 +931,16 @@ void VR_UpdateScreenContent()
 }
 
 void VR_SetMatrices() {
-    HmdMatrix44_t projection;
+	HmdMatrix44_t projection;
 
-    // Calculate HMD projection matrix and view offset position
-    projection = TransposeMatrix(IVRSystem_GetProjectionMatrix(ovrHMD, current_eye->eye, 4.f, gl_farclip.value));
+	// Calculate HMD projection matrix and view offset position
+	projection = TransposeMatrix(IVRSystem_GetProjectionMatrix(ovrHMD, current_eye->eye, 4.f, gl_farclip.value));
 
-    // Set OpenGL projection and view matrices
-    glMatrixMode(GL_PROJECTION);
-    glLoadMatrixf((GLfloat*)projection.m);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    glRotatef(-90, 1, 0, 0); // put Z going up
-    glRotatef(90, 0, 0, 1); // put Z going up
-
-    glRotatef(-r_refdef.viewangles[ROLL], 1, 0, 0);
-	glRotatef(-r_refdef.viewangles[PITCH], 0, 1, 0);
-	glRotatef(-r_refdef.viewangles[YAW], 0, 0, 1);
-
-    glTranslatef(-r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
+	// Set OpenGL projection and view matrices
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf((GLfloat*)projection.m);
 }
+
 
 void VR_AddOrientationToViewAngles(vec3_t angles)
 {
