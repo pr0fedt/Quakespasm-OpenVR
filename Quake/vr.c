@@ -1312,6 +1312,10 @@ void VR_Move(usercmd_t *cmd)
 
 	DoKey(&controllers[0], k_EButton_SteamVR_Touchpad, K_SHIFT);
 
+	DoKey(&controllers[0], k_EButton_ApplicationMenu, '1');
+	DoKey(&controllers[0], k_EButton_A, '2');
+	DoKey(&controllers[1], k_EButton_A, '3');
+	
 	DoKey(&controllers[1], k_EButton_ApplicationMenu, K_ESCAPE);
 	if (key_dest == key_menu)
 	{
