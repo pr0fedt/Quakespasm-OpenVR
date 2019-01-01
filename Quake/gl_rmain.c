@@ -200,8 +200,13 @@ void GLSLGamma_GammaCorrect (void)
 		return;
 
 // create render-to-texture texture if needed
-	if (!r_gamma_texture)
+	if (!r_gamma_texture || (r_gamma_texture_width < glwidth || r_gamma_texture_height < glheight))
 	{
+		if (r_gamma_texture)
+		{
+			glDeleteTextures(1, &r_gamma_texture);
+		}
+		
 		glGenTextures (1, &r_gamma_texture);
 		glBindTexture (GL_TEXTURE_2D, r_gamma_texture);
 
@@ -214,7 +219,7 @@ void GLSLGamma_GammaCorrect (void)
 			r_gamma_texture_height = TexMgr_Pad(r_gamma_texture_height);
 		}
 	
-		glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, r_gamma_texture_width, r_gamma_texture_height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, NULL);
+		glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, r_gamma_texture_width, r_gamma_texture_height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	}
@@ -241,7 +246,8 @@ void GLSLGamma_GammaCorrect (void)
 	GL_Uniform1iFunc (textureLoc, 0); // use texture unit 0
 
 	glDisable (GL_ALPHA_TEST);
-	glDisable (GL_DEPTH_TEST);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
 
 	glViewport (glx, gly, glwidth, glheight);
 
@@ -259,6 +265,8 @@ void GLSLGamma_GammaCorrect (void)
 	glVertex2f (-1, 1);
 	glEnd ();
 	
+	glEnable(GL_CULL_FACE);
+
 	GL_UseProgramFunc (0);
 	
 // clear cached binding
