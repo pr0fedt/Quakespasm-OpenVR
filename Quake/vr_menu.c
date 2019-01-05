@@ -10,6 +10,7 @@ extern cvar_t vr_crosshair_alpha;
 extern cvar_t vr_aimmode;
 extern cvar_t vr_deadzone;
 extern cvar_t vr_world_scale;
+extern cvar_t vr_snap_turn;
 
 static int	vr_options_cursor = 0;
 
@@ -118,6 +119,17 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 		case VR_OPTION_WORLD_SCALE:
 			M_DrawSlider(cx, cy, vr_world_scale.value / 2.0f);
 			break;
+		case VR_OPTION_SNAP_TURN:
+			if (vr_snap_turn.value == 0)
+			{
+				value_string = "Smooth";
+			}
+			else
+			{
+				snprintf(value_buffer, sizeof(value_buffer), "%d Degrees", (int)vr_snap_turn.value);
+				value_string = value_buffer;
+			}
+			break;
 	}
 #ifdef _MSC_VER
 #undef snprintf
@@ -195,6 +207,11 @@ static void VR_MenuKeyOption(int key, int option)
 			floatValue = vr_world_scale.value;
 			floatValue = CLAMP(0.0f, isLeft ? floatValue - crosshairAlphaDiff : floatValue + crosshairAlphaDiff, 2.0f);
 			Cvar_SetValue("vr_world_scale", floatValue);
+			break;
+		case VR_OPTION_SNAP_TURN:
+			intValue = (int)vr_snap_turn.value;
+			intValue = CLAMP(0.0f, isLeft ? intValue - 45 : intValue + 45, 90.0f);
+			Cvar_SetValue("vr_snap_turn", intValue);
 			break;
 	}
 
@@ -308,6 +325,10 @@ static void VR_MenuDraw (void)
 				break;
 			case VR_OPTION_WORLD_SCALE:
 				M_Print(16, y, "       World Scale");
+				VR_MenuPrintOptionValue(220, y, i);
+				break;
+			case VR_OPTION_SNAP_TURN:
+				M_Print(16, y, "       Turn");
 				VR_MenuPrintOptionValue(220, y, i);
 				break;
 

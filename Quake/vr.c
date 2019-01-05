@@ -142,6 +142,7 @@ cvar_t vr_lefthanded = { "vr_lefthanded", "0", CVAR_NONE };
 cvar_t vr_gunangle = { "vr_gunangle", "32", CVAR_ARCHIVE };
 cvar_t vr_world_scale = { "vr_world_scale", "1.0", CVAR_ARCHIVE };
 cvar_t vr_floor_offset = { "vr_floor_offset", "-16", CVAR_ARCHIVE };
+cvar_t vr_snap_turn = { "vr_snap_turn", "0", CVAR_ARCHIVE };
 
 static qboolean InitOpenGLExtensions()
 {
@@ -560,6 +561,7 @@ void VID_VR_Init()
 	Cvar_RegisterVariable(&vr_gunangle);
 	Cvar_RegisterVariable(&vr_world_scale);
 	Cvar_RegisterVariable(&vr_floor_offset);
+	Cvar_RegisterVariable(&vr_snap_turn);	
 	Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
 
 	InitAllWeaponCVars();
@@ -1356,6 +1358,19 @@ void VR_Move(usercmd_t *cmd)
 
 		float yawMove = GetAxis(&controllers[1].state, 0);
 
-		vrYaw -= yawMove * host_frametime * 100.0f;
+		if (vr_snap_turn.value != 0)
+		{
+			static int lastSnap = 0;
+			int snap = yawMove > 0.0f ? 1 : yawMove < 0.0f ? -1 : 0;
+			if (snap != lastSnap)
+			{
+				vrYaw -= snap * vr_snap_turn.value;
+				lastSnap = snap;
+			}
+		}
+		else
+		{
+			vrYaw -= yawMove * host_frametime * 100.0f;
+		}
 	}
 }
