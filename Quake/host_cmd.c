@@ -1167,7 +1167,8 @@ void Host_Loadgame_f (void)
 		{	// parse an edict
 
 			ent = EDICT_NUM(entnum);
-			memset (&ent->v, 0, progs->entityfields * 4);
+			memset(&ent->v, 0, progs->entityfields * 4);
+			memset(&ent->area, 0, sizeof(ent->area));
 			ent->free = false;
 			ED_ParseEdict (start, ent);
 

@@ -493,6 +493,22 @@ void Mod_Weapon(const char* name, aliashdr_t* hdr)
 	}
 }
 
+void VR_ClearWeaponMods()
+{
+	InitialWeaponState* state = initialStates;
+	while (state)
+	{
+		_VectorCopy(state->scale_origin, state->hdr->scale_origin);
+		_VectorCopy(state->scale, state->hdr->scale);
+		
+		InitialWeaponState* freeState = state;
+		state = state->next;
+
+		free(freeState);
+	}
+	initialStates = NULL;
+}
+
 char* CopyWithNumeral(const char* str, int i)
 {
 	int len = strlen(str);
@@ -629,6 +645,11 @@ qboolean VR_Enable()
 void VR_PushYaw()
 {
 	readbackYaw = 1;
+}
+
+void VR_ExitLevel()
+{
+	VR_ClearWeaponMods();
 }
 
 
