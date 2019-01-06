@@ -22,7 +22,7 @@ Forked from [Dominic Szablewski's (Phoboslab) Oculus modification of Quakespasm]
 
 Quake's weapons don't seem to be particularly consistently sized or offset. To work around this there are cvars to position/scale correct the weapons. Set up for the default weapons are included but mods may require new offsets.
 
-There are 4 cvars for each weapon (nn can be 01 to 20)
+There are 20 slots for weapon VR offsets. There are 5 cvars for each (nn can be 01 to 20):
 
 * 'vr_wofs_id_nn' : The model name to offset (this name will be shown when equipping a weapon that doesn't have a VR offset
 * 'vr_wofs_scale_nn' : The model's scale
