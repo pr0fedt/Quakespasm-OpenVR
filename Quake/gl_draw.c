@@ -29,8 +29,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 cvar_t		scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; //johnfitz
 
-extern cvar_t vr_enabled;
-
 qpic_t		*draw_disc;
 qpic_t		*draw_backtile;
 
@@ -378,8 +376,9 @@ void Draw_NewGame (void)
 	int			i;
 
 	// empty scrap and reallocate gltextures
-	memset(&scrap_allocated, 0, sizeof(scrap_allocated));
-	memset(&scrap_texels, 255, sizeof(scrap_texels));
+	memset(scrap_allocated, 0, sizeof(scrap_allocated));
+	memset(scrap_texels, 255, sizeof(scrap_texels));
+
 	Scrap_Upload (); //creates 2 empty gltextures
 
 	// reload wad pics
@@ -404,8 +403,9 @@ void Draw_Init (void)
 	Cvar_RegisterVariable (&scr_conalpha);
 
 	// clear scrap and allocate gltextures
-	memset(&scrap_allocated, 0, sizeof(scrap_allocated));
-	memset(&scrap_texels, 255, sizeof(scrap_texels));
+	memset(scrap_allocated, 0, sizeof(scrap_allocated));
+	memset(scrap_texels, 255, sizeof(scrap_texels));
+
 	Scrap_Upload (); //creates 2 empty textures
 
 	// create internal pics
@@ -650,9 +650,6 @@ Draw_FadeScreen -- johnfitz -- revised
 */
 void Draw_FadeScreen (void)
 {
-	if (vr_enabled.value)
-		return;
-
 	GL_SetCanvas (CANVAS_DEFAULT);
 
 	glEnable (GL_BLEND);
@@ -691,11 +688,8 @@ void GL_SetCanvas (canvastype newcanvas)
 
 	currentcanvas = newcanvas;
 
-	if (vr_enabled.value && !con_forcedup)
-		return;
-
 	glMatrixMode(GL_PROJECTION);
-    glLoadIdentity ();
+	glLoadIdentity ();
 
 	switch(newcanvas)
 	{
@@ -709,8 +703,9 @@ void GL_SetCanvas (canvastype newcanvas)
 		glViewport (glx, gly, glwidth, glheight);
 		break;
 	case CANVAS_MENU:
-		s = q_min((float)glwidth / 640.0, (float)glheight / 200.0); // ericw -- doubled width to 640 to accommodate long keybindings
+		s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
 		s = CLAMP (1.0, scr_menuscale.value, s);
+		// ericw -- doubled width to 640 to accommodate long keybindings
 		glOrtho (0, 640, 200, 0, -99999, 99999);
 		glViewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 640*s, 200*s);
 		break;
@@ -756,7 +751,7 @@ void GL_SetCanvas (canvastype newcanvas)
 	}
 
 	glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity ();
+	glLoadIdentity ();
 }
 
 /*

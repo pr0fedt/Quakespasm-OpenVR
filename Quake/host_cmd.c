@@ -27,7 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 extern cvar_t	pausable;
-extern cvar_t	vr_enabled;
 
 int	current_skill;
 
@@ -55,14 +54,6 @@ void Host_Quit_f (void)
 //==============================================================================
 //johnfitz -- extramaps management
 //==============================================================================
-
-// ericw -- was extralevel_t, renamed and now used with mods list as well
-// to simplify completion code
-typedef struct filelist_item_s
-{
-	char			name[32];
-	struct filelist_item_s	*next;
-} filelist_item_t;
 
 /*
 ==================
@@ -237,8 +228,9 @@ void Modlist_Add (const char *name)
 #ifdef _WIN32
 void Modlist_Init (void)
 {
-	WIN32_FIND_DATA	fdat, mod_fdat;
-	HANDLE		fhnd, mod_fhnd;
+	WIN32_FIND_DATA	fdat;
+	HANDLE		fhnd;
+	DWORD		attribs;
 	char		dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
 
 	q_snprintf (dir_string, sizeof(dir_string), "%s/*", com_basedir);
@@ -248,22 +240,13 @@ void Modlist_Init (void)
 
 	do
 	{
-		if (!strcmp(fdat.cFileName, "."))
+		if (!strcmp(fdat.cFileName, ".") || !strcmp(fdat.cFileName, ".."))
 			continue;
-
-		q_snprintf (mod_string, sizeof(mod_string), "%s/%s/progs.dat", com_basedir, fdat.cFileName);
-		mod_fhnd = FindFirstFile(mod_string, &mod_fdat);
-		if (mod_fhnd != INVALID_HANDLE_VALUE) {
-			FindClose(mod_fhnd);
+		q_snprintf (mod_string, sizeof(mod_string), "%s/%s", com_basedir, fdat.cFileName);
+		attribs = GetFileAttributes (mod_string);
+		if (attribs != INVALID_FILE_ATTRIBUTES && (attribs & FILE_ATTRIBUTE_DIRECTORY)) {
+			/* don't bother testing for pak files / progs.dat */
 			Modlist_Add(fdat.cFileName);
-		}
-		else {
-			q_snprintf (mod_string, sizeof(mod_string), "%s/%s/*.pak", com_basedir, fdat.cFileName);
-			mod_fhnd = FindFirstFile(mod_string, &mod_fdat);
-			if (mod_fhnd != INVALID_HANDLE_VALUE) {
-				FindClose(mod_fhnd);
-				Modlist_Add(fdat.cFileName);
-			}
 		}
 	} while (FindNextFile(fhnd, &fdat));
 
@@ -273,7 +256,7 @@ void Modlist_Init (void)
 void Modlist_Init (void)
 {
 	DIR		*dir_p, *mod_dir_p;
-	struct dirent	*dir_t, *mod_dir_t;
+	struct dirent	*dir_t;
 	char		dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
 
 	q_snprintf (dir_string, sizeof(dir_string), "%s/", com_basedir);
@@ -285,22 +268,14 @@ void Modlist_Init (void)
 	{
 		if (!strcmp(dir_t->d_name, ".") || !strcmp(dir_t->d_name, ".."))
 			continue;
+		if (!q_strcasecmp (COM_FileGetExtension (dir_t->d_name), "app")) // skip .app bundles on macOS
+			continue;
 		q_snprintf(mod_string, sizeof(mod_string), "%s%s/", dir_string, dir_t->d_name);
 		mod_dir_p = opendir(mod_string);
 		if (mod_dir_p == NULL)
 			continue;
-		// find progs.dat and pak file(s)
-		while ((mod_dir_t = readdir(mod_dir_p)) != NULL)
-		{
-			if (!q_strcasecmp(mod_dir_t->d_name, "progs.dat")) {
-				Modlist_Add(dir_t->d_name);
-				break;
-			}
-			if (!q_strcasecmp(COM_FileGetExtension(mod_dir_t->d_name), "pak")) {
-				Modlist_Add(dir_t->d_name);
-				break;
-			}
-		}
+		/* don't bother testing for pak files / progs.dat */
+		Modlist_Add(dir_t->d_name);
 		closedir(mod_dir_p);
 	}
 
@@ -446,12 +421,13 @@ Host_Status_f
 */
 void Host_Status_f (void)
 {
+	void	(*print_fn) (const char *fmt, ...)
+				 FUNCP_PRINTF(1,2);
 	client_t	*client;
 	int			seconds;
 	int			minutes;
 	int			hours = 0;
 	int			j;
-	void		(*print_fn) (const char *fmt, ...) __fp_attribute__((__format__(__printf__,1,2)));
 
 	if (cmd_source == src_command)
 	{
@@ -642,6 +618,67 @@ void Host_Noclip_f (void)
 }
 
 /*
+====================
+Host_SetPos_f
+
+adapted from fteqw, originally by Alex Shadowalker
+====================
+*/
+void Host_SetPos_f(void)
+{
+	if (cmd_source == src_command)
+	{
+		Cmd_ForwardToServer ();
+		return;
+	}
+	
+	if (pr_global_struct->deathmatch)
+		return;
+	
+	if (Cmd_Argc() != 7 && Cmd_Argc() != 4)
+	{
+		SV_ClientPrintf("usage:\n");
+		SV_ClientPrintf("   setpos <x> <y> <z>\n");
+		SV_ClientPrintf("   setpos <x> <y> <z> <pitch> <yaw> <roll>\n");
+		SV_ClientPrintf("current values:\n");
+		SV_ClientPrintf("   %i %i %i %i %i %i\n",
+			(int)sv_player->v.origin[0],
+			(int)sv_player->v.origin[1],
+			(int)sv_player->v.origin[2],
+			(int)sv_player->v.v_angle[0],
+			(int)sv_player->v.v_angle[1],
+			(int)sv_player->v.v_angle[2]);
+		return;
+	}
+	
+	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
+	{
+		noclip_anglehack = true;
+		sv_player->v.movetype = MOVETYPE_NOCLIP;
+		SV_ClientPrintf ("noclip ON\n");
+	}
+	
+	//make sure they're not going to whizz away from it
+	sv_player->v.velocity[0] = 0;
+	sv_player->v.velocity[1] = 0;
+	sv_player->v.velocity[2] = 0;
+	
+	sv_player->v.origin[0] = atof(Cmd_Argv(1));
+	sv_player->v.origin[1] = atof(Cmd_Argv(2));
+	sv_player->v.origin[2] = atof(Cmd_Argv(3));
+	
+	if (Cmd_Argc() == 7)
+	{
+		sv_player->v.angles[0] = atof(Cmd_Argv(4));
+		sv_player->v.angles[1] = atof(Cmd_Argv(5));
+		sv_player->v.angles[2] = atof(Cmd_Argv(6));
+		sv_player->v.fixangle = 1;
+	}
+	
+	SV_LinkEdict (sv_player, false);
+}
+
+/*
 ==================
 Host_Fly_f
 
@@ -801,6 +838,43 @@ void Host_Map_f (void)
 		}
 
 		Cmd_ExecuteString ("connect local", src_command);
+	}
+}
+
+/*
+======================
+Host_Randmap_f
+
+Loads a random map from the "maps" list.
+======================
+*/
+void Host_Randmap_f (void)
+{
+	int	i, randlevel, numlevels;
+	filelist_item_t	*level;
+
+	if (cmd_source != src_command)
+		return;
+
+	for (level = extralevels, numlevels = 0; level; level = level->next)
+		numlevels++;
+
+	if (numlevels == 0)
+	{
+		Con_Printf ("no maps\n");
+		return;
+	}
+
+	randlevel = (rand() % numlevels);
+
+	for (level = extralevels, i = 0; level; level = level->next, i++)
+	{
+		if (i == randlevel)
+		{
+			Con_Printf ("Starting map %s...\n", level->name);
+			Cbuf_AddText (va("map %s\n", level->name));
+			return;
+		}
 	}
 }
 
@@ -1045,13 +1119,13 @@ Host_Loadgame_f
 */
 void Host_Loadgame_f (void)
 {
+	static char	*start;
+	
 	char	name[MAX_OSPATH];
-	FILE	*f;
 	char	mapname[MAX_QPATH];
 	float	time, tfloat;
-	char	str[32768];
-	const char  *start;
-	int	i, r;
+	const char	*data;
+	int	i;
 	edict_t	*ent;
 	int	entnum;
 	int	version;
@@ -1065,6 +1139,12 @@ void Host_Loadgame_f (void)
 		Con_Printf ("load <savename> : load a game\n");
 		return;
 	}
+	
+	if (strstr(Cmd_Argv(1), ".."))
+	{
+		Con_Printf ("Relative pathnames are not allowed.\n");
+		return;
+	}
 
 	cls.demonum = -1;		// stop demo loop in case this fails
 
@@ -1076,30 +1156,38 @@ void Host_Loadgame_f (void)
 //	SCR_BeginLoadingPlaque ();
 
 	Con_Printf ("Loading game from %s...\n", name);
-	f = fopen (name, "r");
-	if (!f)
+	
+// avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
+	if (start != NULL)
+		free (start);
+	
+	start = (char *) COM_LoadMallocFile_TextMode_OSPath(name, NULL);
+	if (start == NULL)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");
 		return;
 	}
 
-	fscanf (f, "%i\n", &version);
+	data = start;
+	data = COM_ParseIntNewline (data, &version);
 	if (version != SAVEGAME_VERSION)
 	{
-		fclose (f);
+		free (start);
+		start = NULL;
 		Con_Printf ("Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
 		return;
 	}
-	fscanf (f, "%s\n", str);
+	data = COM_ParseStringNewline (data);
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
-		fscanf (f, "%f\n", &spawn_parms[i]);
+		data = COM_ParseFloatNewline (data, &spawn_parms[i]);
 // this silliness is so we can load 1.06 save files, which have float skill values
-	fscanf (f, "%f\n", &tfloat);
+	data = COM_ParseFloatNewline(data, &tfloat);
 	current_skill = (int)(tfloat + 0.1);
 	Cvar_SetValue ("skill", (float)current_skill);
 
-	fscanf (f, "%s\n",mapname);
-	fscanf (f, "%f\n",&time);
+	data = COM_ParseStringNewline (data);
+	q_strlcpy (mapname, com_token, sizeof(mapname));
+	data = COM_ParseFloatNewline (data, &time);
 
 	CL_Disconnect_f ();
 
@@ -1107,7 +1195,8 @@ void Host_Loadgame_f (void)
 
 	if (!sv.active)
 	{
-		fclose (f);
+		free (start);
+		start = NULL;
 		Con_Printf ("Couldn't load map\n");
 		return;
 	}
@@ -1118,58 +1207,37 @@ void Host_Loadgame_f (void)
 
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
 	{
-		fscanf (f, "%s\n", str);
-		sv.lightstyles[i] = (const char *)Hunk_Strdup (str, "lightstyles");
+		data = COM_ParseStringNewline (data);
+		sv.lightstyles[i] = (const char *)Hunk_Strdup (com_token, "lightstyles");
 	}
 
 // load the edicts out of the savegame file
 	entnum = -1;		// -1 is the globals
-	while (!feof(f))
+	while (*data)
 	{
-		qboolean inside_string = false;
-		for (i = 0; i < (int) sizeof(str) - 1; i++)
-		{
-			r = fgetc (f);
-			if (r == EOF || !r)
-				break;
-			str[i] = r;
-			if (r == '"')
-			{
-				inside_string = !inside_string;
-			}
-			else if (r == '}' && !inside_string) // only handle } characters outside of quoted strings
-			{
-				i++;
-				break;
-			}
-		}
-		if (i == (int) sizeof(str) - 1)
-		{
-			fclose (f);
-			Sys_Error ("Loadgame buffer overflow");
-		}
-		str[i] = 0;
-		start = str;
-		start = COM_Parse(str);
+		data = COM_Parse (data);
 		if (!com_token[0])
 			break;		// end of file
 		if (strcmp(com_token,"{"))
 		{
-			fclose (f);
 			Sys_Error ("First token isn't a brace");
 		}
 
 		if (entnum == -1)
 		{	// parse the global vars
-			ED_ParseGlobals (start);
+			data = ED_ParseGlobals (data);
 		}
 		else
 		{	// parse an edict
-
 			ent = EDICT_NUM(entnum);
-			memset (&ent->v, 0, progs->entityfields * 4);
-			ent->free = false;
-			ED_ParseEdict (start, ent);
+			if (entnum < sv.num_edicts) {
+				ent->free = false;
+				memset (&ent->v, 0, progs->entityfields * 4);
+			}
+			else {
+				memset (ent, 0, pr_edict_size);
+			}
+			data = ED_ParseEdict (data, ent);
 
 		// link it into the bsp tree
 			if (!ent->free)
@@ -1182,7 +1250,8 @@ void Host_Loadgame_f (void)
 	sv.num_edicts = entnum;
 	sv.time = time;
 
-	fclose (f);
+	free (start);
+	start = NULL;
 
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
@@ -1651,8 +1720,8 @@ void Host_Spawn_f (void)
 	ent = EDICT_NUM( 1 + (host_client - svs.clients) );
 	MSG_WriteByte (&host_client->message, svc_setangle);
 	for (i = 0; i < 2; i++)
-		MSG_WriteAngle (&host_client->message, ent->v.angles[i] );
-	MSG_WriteAngle (&host_client->message, 0 );
+		MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );
+	MSG_WriteAngle (&host_client->message, 0, sv.protocolflags );
 
 	SV_WriteClientdataToMessage (sv_player, &host_client->message);
 
@@ -2161,17 +2230,10 @@ void Host_Startdemos_f (void)
 	if (!sv.active && cls.demonum != -1 && !cls.demoplayback)
 	{
 		cls.demonum = 0;
-		if (vr_enabled.value) {
-			// Start a new game when vr_enabled
-			Cbuf_AddText("maxplayers 1\n");
-			Cbuf_AddText("deathmatch 0\n");
-			Cbuf_AddText("coop 0\n");
-			Cbuf_AddText("map start\n");
-			Cbuf_AddText("centerview\n");
-		}
-		else if (!fitzmode)
+		if (!fitzmode)
 		{  /* QuakeSpasm customization: */
-		   /* go straight to menu, no CL_NextDemo */
+			/* go straight to menu, no CL_NextDemo */
+			cls.demonum = -1;
 			Cbuf_InsertText("menu_main\n");
 			return;
 		}
@@ -2231,6 +2293,7 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("mods", Host_Mods_f); //johnfitz
 	Cmd_AddCommand ("games", Host_Mods_f); // as an alias to "mods" -- S.A. / QuakeSpasm
 	Cmd_AddCommand ("mapname", Host_Mapname_f); //johnfitz
+	Cmd_AddCommand ("randmap", Host_Randmap_f); //ericw
 
 	Cmd_AddCommand ("status", Host_Status_f);
 	Cmd_AddCommand ("quit", Host_Quit_f);
@@ -2244,6 +2307,7 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("reconnect", Host_Reconnect_f);
 	Cmd_AddCommand ("name", Host_Name_f);
 	Cmd_AddCommand ("noclip", Host_Noclip_f);
+	Cmd_AddCommand ("setpos", Host_SetPos_f); //QuakeSpasm
 
 	Cmd_AddCommand ("say", Host_Say_f);
 	Cmd_AddCommand ("say_team", Host_Say_Team_f);

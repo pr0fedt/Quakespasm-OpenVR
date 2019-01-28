@@ -140,6 +140,7 @@ extern	cvar_t	r_telealpha;
 extern	cvar_t	r_slimealpha;
 extern	cvar_t	r_dynamic;
 extern	cvar_t	r_novis;
+extern	cvar_t	r_scale;
 
 extern	cvar_t	gl_clear;
 extern	cvar_t	gl_cull;
@@ -284,13 +285,14 @@ typedef struct {
 	double	packetsize;
 	double	efrags;
 	double	beams;
+	double	varstring;
 } overflowtimes_t;
 extern overflowtimes_t dev_overflows; //this stores the last time overflow messages were displayed, not the last time overflows occured
 #define CONSOLE_RESPAM_TIME 3 // seconds between repeated warning messages
 
 //johnfitz -- moved here from r_brush.c
 extern int gl_lightmap_format, lightmap_bytes;
-#define MAX_LIGHTMAPS 256 //johnfitz -- was 64
+#define MAX_LIGHTMAPS 512 //johnfitz -- was 64
 extern gltexture_t *lightmap_textures[MAX_LIGHTMAPS]; //johnfitz -- changed to an array
 
 extern int gl_warpimagesize; //johnfitz -- for water warp
@@ -368,6 +370,7 @@ GLint GL_GetUniformLocation (GLuint *programPtr, const char *name);
 GLuint GL_CreateProgram (const GLchar *vertSource, const GLchar *fragSource, int numbindings, const glsl_attrib_binding_t *bindings);
 void R_DeleteShaders (void);
 
+void GLWorld_CreateShaders (void);
 void GLAlias_CreateShaders (void);
 void GL_DrawAliasShadow (entity_t *e);
 void DrawGLTriangleFan (glpoly_t *p);
@@ -393,6 +396,8 @@ void GL_ClearBufferBindings ();
 
 void GLSLGamma_DeleteTexture (void);
 void GLSLGamma_GammaCorrect (void);
+
+void R_ScaleView_DeleteTexture (void);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
 

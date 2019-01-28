@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
-Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2010-2017 QuakeSpasm developers
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,8 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __QUAKEDEFS_H
-#define __QUAKEDEFS_H
+#ifndef QUAKEDEFS_H
+#define QUAKEDEFS_H
 
 // quakedef.h -- primary header for client
 
@@ -36,8 +36,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	X11_VERSION		1.10
 
 #define	FITZQUAKE_VERSION	0.85	//johnfitz
-#define	QUAKESPASM_VERSION	0.91
-#define	QUAKESPASM_VER_PATCH	1	// helper to print a string like 0.91.0
+#define	QUAKESPASM_VERSION	0.93
+#define	QUAKESPASM_VER_PATCH	1	// helper to print a string like 0.93.1
+#ifndef	QUAKESPASM_VER_SUFFIX
+#define	QUAKESPASM_VER_SUFFIX		// optional version suffix string literal like "-beta1"
+#endif
+
+#define	QS_STRINGIFY_(x)	#x
+#define	QS_STRINGIFY(x)	QS_STRINGIFY_(x)
+
+// combined version string like "0.92.1-beta1"
+#define	QUAKESPASM_VER_STRING	QS_STRINGIFY(QUAKESPASM_VERSION) "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX
 
 //define	PARANOID			// speed sapping error checking
 
@@ -194,6 +203,7 @@ typedef struct
 	void	*membase;
 	int	memsize;
 	int	numcpus;
+	int	errstate;
 } quakeparms_t;
 
 #include "common.h"
@@ -278,17 +288,31 @@ extern	int		host_framecount;	// incremented every frame, never reset
 extern	double		realtime;		// not bounded in any way, changed at
 							// start of every frame, never reset
 
+typedef struct filelist_item_s
+{
+	char			name[32];
+	struct filelist_item_s	*next;
+} filelist_item_t;
+
+extern filelist_item_t	*modlist;
+extern filelist_item_t	*extralevels;
+extern filelist_item_t	*demolist;
+
 void Host_ClearMemory (void);
 void Host_ServerFrame (void);
 void Host_InitCommands (void);
 void Host_Init (void);
 void Host_Shutdown(void);
 void Host_Callback_Notify (cvar_t *var);	/* callback function for CVAR_NOTIFY */
-void Host_Error (const char *error, ...) __attribute__((__format__(__printf__,1,2), __noreturn__));
-void Host_EndGame (const char *message, ...) __attribute__((__format__(__printf__,1,2), __noreturn__));
+FUNC_NORETURN void Host_Error (const char *error, ...) FUNC_PRINTF(1,2);
+FUNC_NORETURN void Host_EndGame (const char *message, ...) FUNC_PRINTF(1,2);
+#ifdef __WATCOMC__
+#pragma aux Host_Error aborts;
+#pragma aux Host_EndGame aborts;
+#endif
 void Host_Frame (float time);
 void Host_Quit_f (void);
-void Host_ClientCommands (const char *fmt, ...) __attribute__((__format__(__printf__,1,2)));
+void Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Host_ShutdownServer (qboolean crash);
 void Host_WriteConfiguration (void);
 
@@ -306,5 +330,5 @@ extern qboolean		isDedicated;
 
 extern int		minimum_memory;
 
-#endif	/* __QUAKEDEFS_H */
+#endif	/* QUAKEDEFS_H */
 

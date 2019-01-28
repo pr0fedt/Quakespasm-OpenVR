@@ -87,7 +87,7 @@ void ED_Write (FILE *f, edict_t *ed);
 const char *ED_ParseEdict (const char *data, edict_t *ent);
 
 void ED_WriteGlobals (FILE *f);
-void ED_ParseGlobals (const char *data);
+const char *ED_ParseGlobals (const char *data);
 
 void ED_LoadFromFile (const char *data);
 
@@ -130,7 +130,10 @@ extern	int		pr_xstatement;
 
 extern	unsigned short	pr_crc;
 
-void PR_RunError (const char *error, ...) __attribute__((__format__(__printf__,1,2), __noreturn__));
+FUNC_NORETURN void PR_RunError (const char *error, ...) FUNC_PRINTF(1,2);
+#ifdef __WATCOMC__
+#pragma aux PR_RunError aborts;
+#endif
 
 void ED_PrintEdicts (void);
 void ED_PrintNum (int ent);

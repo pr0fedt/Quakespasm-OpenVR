@@ -85,8 +85,6 @@ typedef struct
 	vec3_t	start, end;
 } beam_t;
 
-#define	MAX_EFRAGS		4096 //ericw -- was 2048 //johnfitz -- was 640
-
 #define	MAX_MAPSTRING	2048
 #define	MAX_DEMOS		8
 #define	MAX_DEMONAME	16
@@ -166,8 +164,6 @@ typedef struct
 								// between these
 	vec3_t		viewangles;
 
-	vec3_t		aimangles;
-
 	vec3_t		mvelocity[2];	// update by server, used for lean+bob
 								// (0 is newest)
 	vec3_t		velocity;		// lerped between mvelocity[0] and [1]
@@ -216,6 +212,7 @@ typedef struct
 // refresh related state
 	struct qmodel_s	*worldmodel;	// cl_entitites[0].model
 	struct efrag_s	*free_efrags;
+	int			num_efrags;
 	int			num_entities;	// held in cl_entities array
 	int			num_statics;	// held in cl_staticentities array
 	entity_t	viewent;			// the gun model
@@ -226,6 +223,7 @@ typedef struct
 	scoreboard_t	*scores;		// [cl.maxclients]
 
 	unsigned	protocol; //johnfitz
+	unsigned	protocolflags;
 } client_state_t;
 
 
@@ -247,6 +245,8 @@ extern	cvar_t	cl_pitchspeed;
 
 extern	cvar_t	cl_anglespeedkey;
 
+extern	cvar_t	cl_alwaysrun; // QuakeSpasm
+
 extern	cvar_t	cl_autofire;
 
 extern	cvar_t	cl_shownet;
@@ -266,13 +266,12 @@ extern	cvar_t	m_side;
 
 
 #define	MAX_TEMP_ENTITIES	256		//johnfitz -- was 64
-#define	MAX_STATIC_ENTITIES	512		//johnfitz -- was 128
+#define	MAX_STATIC_ENTITIES	4096	//ericw -- was 512	//johnfitz -- was 128
 #define	MAX_VISEDICTS		4096	// larger, now we support BSP2
 
 extern	client_state_t	cl;
 
 // FIXME, allocate dynamically
-extern	efrag_t			cl_efrags[MAX_EFRAGS];
 extern	entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
 extern	lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 extern	dlight_t		cl_dlights[MAX_DLIGHTS];
@@ -370,7 +369,6 @@ extern	cvar_t	chase_active;
 
 void Chase_Init (void);
 void TraceLine (vec3_t start, vec3_t end, vec3_t impact);
-void TraceLineToEntity(vec3_t start, vec3_t end, vec3_t impact, edict_t *ent);
 void Chase_UpdateForClient (void);	//johnfitz
 void Chase_UpdateForDrawing (void);	//johnfitz
 

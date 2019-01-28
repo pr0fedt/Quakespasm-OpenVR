@@ -78,12 +78,13 @@ static GLuint texLoc;
 static GLuint fullbrightTexLoc;
 static GLuint useFullbrightTexLoc;
 static GLuint useOverbrightLoc;
+static GLuint useAlphaTestLoc;
 
-static const GLint pose1VertexAttrIndex = 0;
-static const GLint pose1NormalAttrIndex = 1;
-static const GLint pose2VertexAttrIndex = 2;
-static const GLint pose2NormalAttrIndex = 3;
-static const GLint texCoordsAttrIndex = 4;
+#define pose1VertexAttrIndex 0
+#define pose1NormalAttrIndex 1
+#define pose2VertexAttrIndex 2
+#define pose2NormalAttrIndex 3
+#define texCoordsAttrIndex 4
 
 /*
 =============
@@ -95,8 +96,7 @@ model and pose.
 */
 static void *GLARB_GetXYZOffset (aliashdr_t *hdr, int pose)
 {
-	meshxyz_t dummy;
-	int xyzoffs = ((char*)&dummy.xyz - (char*)&dummy);
+	const int xyzoffs = offsetof (meshxyz_t, xyz);
 	return (void *) (currententity->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + xyzoffs);
 }
 
@@ -110,8 +110,7 @@ given model and pose.
 */
 static void *GLARB_GetNormalOffset (aliashdr_t *hdr, int pose)
 {
-	meshxyz_t dummy;
-	int normaloffs = ((char*)&dummy.normal - (char*)&dummy);
+	const int normaloffs = offsetof (meshxyz_t, normal);
 	return (void *)(currententity->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + normaloffs);
 }
 
@@ -141,6 +140,9 @@ void GLAlias_CreateShaders (void)
 		"attribute vec3 Pose1Normal;\n"
 		"attribute vec4 Pose2Vert;\n"
 		"attribute vec3 Pose2Normal;\n"
+		"\n"
+		"varying float FogFragCoord;\n"
+		"\n"
 		"float r_avertexnormal_dot(vec3 vertexnormal) // from MH \n"
 		"{\n"
 		"        float dot = dot(vertexnormal, ShadeVector);\n"
@@ -153,14 +155,12 @@ void GLAlias_CreateShaders (void)
 		"void main()\n"
 		"{\n"
 		"	gl_TexCoord[0] = TexCoords;\n"
-		"	vec4 lerpedVert = mix(Pose1Vert, Pose2Vert, Blend);\n"
+		"	vec4 lerpedVert = mix(vec4(Pose1Vert.xyz, 1.0), vec4(Pose2Vert.xyz, 1.0), Blend);\n"
 		"	gl_Position = gl_ModelViewProjectionMatrix * lerpedVert;\n"
+		"	FogFragCoord = gl_Position.w;\n"
 		"	float dot1 = r_avertexnormal_dot(Pose1Normal);\n"
 		"	float dot2 = r_avertexnormal_dot(Pose2Normal);\n"
 		"	gl_FrontColor = LightColor * vec4(vec3(mix(dot1, dot2, Blend)), 1.0);\n"
-		"	// fog\n"
-		"	vec3 ecPosition = vec3(gl_ModelViewMatrix * lerpedVert);\n"
-		"	gl_FogFragCoord = abs(ecPosition.z);\n"
 		"}\n";
 
 	const GLchar *fragSource = \
@@ -170,20 +170,25 @@ void GLAlias_CreateShaders (void)
 		"uniform sampler2D FullbrightTex;\n"
 		"uniform bool UseFullbrightTex;\n"
 		"uniform bool UseOverbright;\n"
+		"uniform bool UseAlphaTest;\n"
+		"\n"
+		"varying float FogFragCoord;\n"
+		"\n"
 		"void main()\n"
 		"{\n"
 		"	vec4 result = texture2D(Tex, gl_TexCoord[0].xy);\n"
+		"	if (UseAlphaTest && (result.a < 0.666))\n"
+		"		discard;\n"
 		"	result *= gl_Color;\n"
 		"	if (UseOverbright)\n"
 		"		result.rgb *= 2.0;\n"
 		"	if (UseFullbrightTex)\n"
 		"		result += texture2D(FullbrightTex, gl_TexCoord[0].xy);\n"
 		"	result = clamp(result, 0.0, 1.0);\n"
-		"	// apply GL_EXP2 fog (from the orange book)\n"
-		"	float fog = exp(-gl_Fog.density * gl_Fog.density * gl_FogFragCoord * gl_FogFragCoord);\n"
+		"	float fog = exp(-gl_Fog.density * gl_Fog.density * FogFragCoord * FogFragCoord);\n"
 		"	fog = clamp(fog, 0.0, 1.0);\n"
 		"	result = mix(gl_Fog.color, result, fog);\n"
-		"	result.a = gl_Color.a;\n"
+		"	result.a = gl_Color.a;\n" // FIXME: This will make almost transparent things cut holes though heavy fog
 		"	gl_FragColor = result;\n"
 		"}\n";
 
@@ -202,6 +207,7 @@ void GLAlias_CreateShaders (void)
 		fullbrightTexLoc = GL_GetUniformLocation (&r_alias_program, "FullbrightTex");
 		useFullbrightTexLoc = GL_GetUniformLocation (&r_alias_program, "UseFullbrightTex");
 		useOverbrightLoc = GL_GetUniformLocation (&r_alias_program, "UseOverbright");
+		useAlphaTestLoc = GL_GetUniformLocation (&r_alias_program, "UseAlphaTest");
 	}
 }
 
@@ -258,6 +264,7 @@ void GL_DrawAliasFrame_GLSL (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltextu
 	GL_Uniform1iFunc (fullbrightTexLoc, 1);
 	GL_Uniform1iFunc (useFullbrightTexLoc, (fb != NULL) ? 1 : 0);
 	GL_Uniform1fFunc (useOverbrightLoc, overbright ? 1 : 0);
+	GL_Uniform1iFunc (useAlphaTestLoc, (currententity->model->flags & MF_HOLEY) ? 1 : 0);
 
 // set textures
 	GL_SelectTexture (GL_TEXTURE0);
@@ -618,9 +625,10 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 void R_DrawAliasModel (entity_t *e)
 {
 	aliashdr_t	*paliashdr;
-	int			i, anim;
+	int			i, anim, skinnum;
 	gltexture_t	*tx, *fb;
 	lerpdata_t	lerpdata;
+	qboolean	alphatest = !!(e->model->flags & MF_HOLEY);
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -668,6 +676,8 @@ void R_DrawAliasModel (entity_t *e)
 		glDepthMask(GL_FALSE);
 		glEnable(GL_BLEND);
 	}
+	else if (alphatest)
+		glEnable (GL_ALPHA_TEST);
 
 	//
 	// set up lighting
@@ -680,17 +690,15 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	GL_DisableMultitexture();
 	anim = (int)(cl.time*10) & 3;
-	if ((e->skinnum >= paliashdr->numskins) || (e->skinnum < 0))
+	skinnum = e->skinnum;
+	if ((skinnum >= paliashdr->numskins) || (skinnum < 0))
 	{
-		Con_DPrintf ("R_DrawAliasModel: no such skin # %d for '%s'\n", e->skinnum, e->model->name);
-		tx = NULL; // NULL will give the checkerboard texture
-		fb = NULL;
+		Con_DPrintf ("R_DrawAliasModel: no such skin # %d for '%s'\n", skinnum, e->model->name);
+		// ericw -- display skin 0 for winquake compatibility
+		skinnum = 0;
 	}
-	else
-	{
-		tx = paliashdr->gltextures[e->skinnum][anim];
-		fb = paliashdr->fbtextures[e->skinnum][anim];
-	} 
+	tx = paliashdr->gltextures[skinnum][anim];
+	fb = paliashdr->fbtextures[skinnum][anim];
 	if (e->colormap != vid.colormap && !gl_nocolors.value)
 	{
 		i = e - cl_entities;
@@ -880,6 +888,8 @@ cleanup:
 	glShadeModel (GL_FLAT);
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
+	if (alphatest)
+		glDisable (GL_ALPHA_TEST);
 	glColor3f(1,1,1);
 	glPopMatrix ();
 }

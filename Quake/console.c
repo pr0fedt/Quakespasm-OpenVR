@@ -36,7 +36,7 @@ int 		con_linewidth;
 
 float		con_cursorspeed = 4;
 
-#define		CON_TEXTSIZE 65536 //johnfitz -- new default size
+#define		CON_TEXTSIZE (1024 * 1024) //ericw -- was 65536. johnfitz -- new default size
 #define		CON_MINSIZE  16384 //johnfitz -- old default, now the minimum size
 
 int		con_buffersize; //johnfitz -- user can now override default
@@ -634,7 +634,7 @@ void Con_SafePrintf (const char *fmt, ...)
 Con_CenterPrintf -- johnfitz -- pad each line with spaces to make it appear centered
 ================
 */
-void Con_CenterPrintf (int linewidth, const char *fmt, ...) __attribute__((__format__(__printf__,2,3)));
+void Con_CenterPrintf (int linewidth, const char *fmt, ...) FUNC_PRINTF(2,3);
 void Con_CenterPrintf (int linewidth, const char *fmt, ...)
 {
 	va_list	argptr;
@@ -806,17 +806,6 @@ void AddToTabList (const char *name, const char *type)
 	}
 }
 
-// This is redefined from host_cmd.c
-typedef struct filelist_item_s
-{
-	char			name[32];
-	struct filelist_item_s	*next;
-} filelist_item_t;
-
-extern filelist_item_t	*extralevels;
-extern filelist_item_t	*modlist;
-extern filelist_item_t	*demolist;
-
 typedef struct arg_completion_type_s
 {
 	const char		*command;
@@ -829,7 +818,8 @@ static const arg_completion_type_t arg_completion_types[] =
 	{ "changelevel ", &extralevels },
 	{ "game ", &modlist },
 	{ "record ", &demolist },
-	{ "playdemo ", &demolist }
+	{ "playdemo ", &demolist },
+	{ "timedemo ", &demolist }
 };
 
 static const int num_arg_completion_types =
@@ -934,7 +924,7 @@ void Con_TabComplete (void)
 	const char	*match;
 	static char	*c;
 	tab_t		*t;
-	int		mark, i;
+	int		mark, i, j;
 
 // if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -955,11 +945,11 @@ void Con_TabComplete (void)
 
 // Map autocomplete function -- S.A
 // Since we don't have argument completion, this hack will do for now...
-	for (i=0; i<num_arg_completion_types; i++)
+	for (j=0; j<num_arg_completion_types; j++)
 	{
 	// arg_completion contains a command we can complete the arguments
 	// for (like "map ") and a list of all the maps.
-		arg_completion_type_t arg_completion = arg_completion_types[i];
+		arg_completion_type_t arg_completion = arg_completion_types[j];
 		const char *command_name = arg_completion.command;
 		
 		if (!strncmp (key_lines[edit_line] + 1, command_name, strlen(command_name)))
@@ -1237,7 +1227,7 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 
 //draw version number in bottom right
 	y += 8;
-	sprintf (ver, "QuakeSpasm %1.2f.%d", (float)QUAKESPASM_VERSION, QUAKESPASM_VER_PATCH);
+	q_snprintf (ver, sizeof(ver), "QuakeSpasm " QUAKESPASM_VER_STRING);
 	for (x = 0; x < (int)strlen(ver); x++)
 		Draw_Character ((con_linewidth - strlen(ver) + x + 2)<<3, y, ver[x] /*+ 128*/);
 }

@@ -36,7 +36,11 @@ qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t	external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 
-byte	mod_novis[MAX_MAP_LEAFS/8];
+static byte	*mod_novis;
+static int	mod_novis_capacity;
+
+static byte	*mod_decompressed;
+static int	mod_decompressed_capacity;
 
 #define	MAX_MOD_KNOWN	2048 /*johnfitz -- was 512 */
 qmodel_t	mod_known[MAX_MOD_KNOWN];
@@ -54,8 +58,6 @@ void Mod_Init (void)
 {
 	Cvar_RegisterVariable (&gl_subdivide_size);
 	Cvar_RegisterVariable (&external_ents);
-
-	memset (mod_novis, 0xff, sizeof(mod_novis));
 
 	//johnfitz -- create notexture miptex
 	r_notexture_mip = (texture_t *) Hunk_AllocName (sizeof(texture_t), "r_notexture_mip");
@@ -128,17 +130,22 @@ Mod_DecompressVis
 */
 byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 {
-	static byte	decompressed[MAX_MAP_LEAFS/8];
 	int		c;
 	byte	*out;
+	byte	*outend;
 	int		row;
 
 	row = (model->numleafs+7)>>3;
-	out = decompressed;
+	if (mod_decompressed == NULL || row > mod_decompressed_capacity)
+	{
+		mod_decompressed_capacity = row;
+		mod_decompressed = (byte *) realloc (mod_decompressed, mod_decompressed_capacity);
+		if (!mod_decompressed)
+			Sys_Error ("Mod_DecompressVis: realloc() failed on %d bytes", mod_decompressed_capacity);
+	}
+	out = mod_decompressed;
+	outend = mod_decompressed + row;
 
-#if 0
-	memcpy (out, in, row);
-#else
 	if (!in)
 	{	// no vis info, so make all visible
 		while (row)
@@ -146,7 +153,7 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 			*out++ = 0xff;
 			row--;
 		}
-		return decompressed;
+		return mod_decompressed;
 	}
 
 	do
@@ -161,20 +168,44 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 		in += 2;
 		while (c)
 		{
+			if (out == outend)
+			{
+				if(!model->viswarn) {
+					model->viswarn = true;
+					Con_Warning("Mod_DecompressVis: output overrun on model \"%s\"\n", model->name);
+				}
+				return mod_decompressed;
+			}
 			*out++ = 0;
 			c--;
 		}
-	} while (out - decompressed < row);
-#endif
+	} while (out - mod_decompressed < row);
 
-	return decompressed;
+	return mod_decompressed;
 }
 
 byte *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model)
 {
 	if (leaf == model->leafs)
-		return mod_novis;
+		return Mod_NoVisPVS (model);
 	return Mod_DecompressVis (leaf->compressed_vis, model);
+}
+
+byte *Mod_NoVisPVS (qmodel_t *model)
+{
+	int pvsbytes;
+ 
+	pvsbytes = (model->numleafs+7)>>3;
+	if (mod_novis == NULL || pvsbytes > mod_novis_capacity)
+	{
+		mod_novis_capacity = pvsbytes;
+		mod_novis = (byte *) realloc (mod_novis, mod_novis_capacity);
+		if (!mod_novis)
+			Sys_Error ("Mod_NoVisPVS: realloc() failed on %d bytes", mod_novis_capacity);
+		
+		memset(mod_novis, 0xff, mod_novis_capacity);
+	}
+	return mod_novis;
 }
 
 /*
@@ -303,7 +334,7 @@ qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	if (!buf)
 	{
 		if (crash)
-			Sys_Error ("Mod_LoadModel: %s not found", mod->name); //johnfitz -- was "Mod_NumForName"
+			Host_Error ("Mod_LoadModel: %s not found", mod->name); //johnfitz -- was "Mod_NumForName"
 		return NULL;
 	}
 
@@ -700,7 +731,7 @@ void Mod_LoadLighting (lump_t *l)
 			i = LittleLong(((int *)data)[1]);
 			if (i == 1)
 			{
-				Con_DPrintf("%s loaded\n", litfilename);
+				Con_DPrintf2("%s loaded\n", litfilename);
 				loadmodel->lightdata = data + 8;
 				return;
 			}
@@ -740,6 +771,7 @@ Mod_LoadVisibility
 */
 void Mod_LoadVisibility (lump_t *l)
 {
+	loadmodel->viswarn = false;
 	if (!l->filelen)
 	{
 		loadmodel->visdata = NULL;
@@ -1481,10 +1513,6 @@ void Mod_ProcessLeafs_L1 (dl1leaf_t *in, int filelen)
 
 	out = (mleaf_t *) Hunk_AllocName (count * sizeof(*out), loadname);
 
-
-	if (count > MAX_MAP_LEAFS)
-		Host_Error ("Mod_LoadLeafs: %i leafs exceeds limit of %i.\n", count, MAX_MAP_LEAFS);
-
 	loadmodel->leafs = out;
 	loadmodel->numleafs = count;
 
@@ -1527,10 +1555,6 @@ void Mod_ProcessLeafs_L2 (dl2leaf_t *in, int filelen)
 	count = filelen / sizeof(*in);
 
 	out = (mleaf_t *) Hunk_AllocName (count * sizeof(*out), loadname);
-
-
-	if (count > MAX_MAP_LEAFS)
-		Host_Error ("Mod_LoadLeafs: %i leafs exceeds limit of %i.\n", count, MAX_MAP_LEAFS);
 
 	loadmodel->leafs = out;
 	loadmodel->numleafs = count;
@@ -1900,9 +1924,6 @@ void Mod_LoadSubmodels (lump_t *l)
 
 	// johnfitz -- check world visleafs -- adapted from bjp
 	out = loadmodel->submodels;
-
-	if (out->visleafs > MAX_MAP_LEAFS)
-		Sys_Error ("Mod_LoadSubmodels: too many visleafs (%d, max = %d) in %s", out->visleafs, MAX_MAP_LEAFS, loadmodel->name);
 
 	if (out->visleafs > 8192)
 		Con_DWarning ("%i visleafs exceeds standard limit of 8192.\n", out->visleafs);
@@ -2278,6 +2299,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 	daliasskininterval_t	*pinskinintervals;
 	char			fbr_mask_name[MAX_QPATH]; //johnfitz -- added for fullbright support
 	src_offset_t		offset; //johnfitz
+	unsigned int		texflags = TEXPREF_PAD;
 
 	skin = (byte *)(pskintype + 1);
 
@@ -2285,6 +2307,9 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 		Sys_Error ("Mod_LoadAliasModel: Invalid # of skins: %d\n", numskins);
 
 	size = pheader->skinwidth * pheader->skinheight;
+
+	if (loadmodel->flags & MF_HOLEY)
+		texflags |= TEXPREF_ALPHA;
 
 	for (i=0 ; i<numskins ; i++)
 	{
@@ -2303,15 +2328,15 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 			if (Mod_CheckFullbrights ((byte *)(pskintype+1), size))
 			{
 				pheader->gltextures[i][0] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_NOBRIGHT);
+					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
 				q_snprintf (fbr_mask_name, sizeof(fbr_mask_name), "%s:frame%i_glow", loadmodel->name, i);
 				pheader->fbtextures[i][0] = TexMgr_LoadImage (loadmodel, fbr_mask_name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_FULLBRIGHT);
+					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
 			}
 			else
 			{
 				pheader->gltextures[i][0] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, TEXPREF_PAD);
+					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, texflags);
 				pheader->fbtextures[i][0] = NULL;
 			}
 
@@ -2346,15 +2371,15 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 				if (Mod_CheckFullbrights ((byte *)(pskintype), size))
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_NOBRIGHT);
+						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
 					q_snprintf (fbr_mask_name, sizeof(fbr_mask_name), "%s:frame%i_%i_glow", loadmodel->name, i,j);
 					pheader->fbtextures[i][j&3] = TexMgr_LoadImage (loadmodel, fbr_mask_name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_FULLBRIGHT);
+						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
 				}
 				else
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, TEXPREF_PAD);
+						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, texflags);
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
@@ -2465,10 +2490,10 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 {
 	extern cvar_t r_nolerp_list, r_noshadow_list;
 
-	if (!mod || !mod->name || mod->type != mod_alias)
+	if (!mod || mod->type != mod_alias)
 		return;
 
-	mod->flags &= 0xFF; //only preserve first byte
+	mod->flags &= (0xFF | MF_HOLEY); //only preserve first byte, plus MF_HOLEY
 
 	// nolerp flag
 	if (nameInList(r_nolerp_list.string, mod->name))

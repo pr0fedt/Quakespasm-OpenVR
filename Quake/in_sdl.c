@@ -49,14 +49,15 @@ static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 #endif
 
 // SDL2 Game Controller cvars
-cvar_t	joy_deadzone = { "joy_deadzone", "0.175", CVAR_NONE };
-cvar_t	joy_deadzone_trigger = { "joy_deadzone_trigger", "0.001", CVAR_NONE };
-cvar_t	joy_sensitivity_yaw = { "joy_sensitivity_yaw", "300", CVAR_NONE };
-cvar_t	joy_sensitivity_pitch = { "joy_sensitivity_pitch", "150", CVAR_NONE };
-cvar_t	joy_invert = { "joy_invert", "0", CVAR_NONE };
-cvar_t	joy_exponent = { "joy_exponent", "3", CVAR_NONE };
-cvar_t	joy_swapmovelook = { "joy_swapmovelook", "0", CVAR_NONE };
-cvar_t	joy_enable = { "joy_enable", "1", CVAR_NONE };
+cvar_t	joy_deadzone = { "joy_deadzone", "0.175", CVAR_ARCHIVE };
+cvar_t	joy_deadzone_trigger = { "joy_deadzone_trigger", "0.2", CVAR_ARCHIVE };
+cvar_t	joy_sensitivity_yaw = { "joy_sensitivity_yaw", "300", CVAR_ARCHIVE };
+cvar_t	joy_sensitivity_pitch = { "joy_sensitivity_pitch", "150", CVAR_ARCHIVE };
+cvar_t	joy_invert = { "joy_invert", "0", CVAR_ARCHIVE };
+cvar_t	joy_exponent = { "joy_exponent", "3", CVAR_ARCHIVE };
+cvar_t	joy_exponent_move = { "joy_exponent_move", "3", CVAR_ARCHIVE };
+cvar_t	joy_swapmovelook = { "joy_swapmovelook", "0", CVAR_ARCHIVE };
+cvar_t	joy_enable = { "joy_enable", "1", CVAR_ARCHIVE };
 
 #if defined(USE_SDL2)
 static SDL_JoystickID joy_active_instaceid = -1;
@@ -81,7 +82,7 @@ static int buttonremap[] =
 /* total accumulated mouse movement since last frame */
 static int	total_dx, total_dy = 0;
 
-static int IN_FilterMouseEvents (const SDL_Event *event)
+static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 {
 	switch (event->type)
 	{
@@ -95,13 +96,13 @@ static int IN_FilterMouseEvents (const SDL_Event *event)
 }
 
 #if defined(USE_SDL2)
-static int IN_SDL2_FilterMouseEvents (void *userdata, SDL_Event *event)
+static int SDLCALL IN_SDL2_FilterMouseEvents (void *userdata, SDL_Event *event)
 {
 	return IN_FilterMouseEvents (event);
 }
 #endif
 
-static void IN_BeginIgnoringMouseEvents()
+static void IN_BeginIgnoringMouseEvents(void)
 {
 #if defined(USE_SDL2)
 	SDL_EventFilter currentFilter = NULL;
@@ -116,7 +117,7 @@ static void IN_BeginIgnoringMouseEvents()
 #endif
 }
 
-static void IN_EndIgnoringMouseEvents()
+static void IN_EndIgnoringMouseEvents(void)
 {
 #if defined(USE_SDL2)
 	SDL_EventFilter currentFilter;
@@ -370,6 +371,7 @@ void IN_Init (void)
 	Cvar_RegisterVariable(&joy_deadzone_trigger);
 	Cvar_RegisterVariable(&joy_invert);
 	Cvar_RegisterVariable(&joy_exponent);
+	Cvar_RegisterVariable(&joy_exponent_move);
 	Cvar_RegisterVariable(&joy_swapmovelook);
 	Cvar_RegisterVariable(&joy_enable);
 
@@ -416,6 +418,11 @@ static joyaxisstate_t joy_axisstate;
 static double joy_buttontimer[SDL_CONTROLLER_BUTTON_MAX];
 static double joy_emulatedkeytimer[10];
 
+#ifdef __WATCOMC__ /* OW1.9 doesn't have powf() / sqrtf() */
+#define powf pow
+#define sqrtf sqrt
+#endif
+
 /*
 ================
 IN_AxisMagnitude
@@ -431,13 +438,13 @@ static vec_t IN_AxisMagnitude(joyaxis_t axis)
 
 /*
 ================
-IN_ApplyLookEasing
+IN_ApplyEasing
 
 assumes axis values are in [-1, 1] and the vector magnitude has been clamped at 1.
 Raises the axis values to the given exponent, keeping signs.
 ================
 */
-static joyaxis_t IN_ApplyLookEasing(joyaxis_t axis, float exponent)
+static joyaxis_t IN_ApplyEasing(joyaxis_t axis, float exponent)
 {
 	joyaxis_t result = {0};
 	vec_t eased_magnitude;
@@ -457,21 +464,21 @@ static joyaxis_t IN_ApplyLookEasing(joyaxis_t axis, float exponent)
 ================
 IN_ApplyMoveEasing
 
-clamps coordinates to a square with coordinates +/- sqrt(2)/2, then scales them to +/- 1.
-This wastes a bit of stick range, but gives the diagonals coordinates of (+/-1,+/-1),
-so holding the stick on a diagonal gives the same speed boost as holding the forward and strafe keyboard keys.
+same as IN_ApplyEasing, but scales the output by sqrt(2).
+this gives diagonal stick inputs coordinates of (+/-1,+/-1).
+
+forward/back/left/right will return +/- 1.41; this shouldn't be a problem because
+you can pull back on the stick to go slower (and the final speed is clamped
+by sv_maxspeed).
 ================
 */
-static joyaxis_t IN_ApplyMoveEasing(joyaxis_t axis)
+static joyaxis_t IN_ApplyMoveEasing(joyaxis_t axis, float exponent)
 {
-	joyaxis_t result = {0};
-	const float v = sqrtf(2.0f) / 2.0f;
+	joyaxis_t result = IN_ApplyEasing(axis, exponent);
+	const float v = sqrtf(2.0f);
 	
-	result.x = q_max(-v, q_min(v, axis.x));
-	result.y = q_max(-v, q_min(v, axis.y));
-	
-	result.x /= v;
-	result.y /= v;
+	result.x *= v;
+	result.y *= v;
 
 	return result;
 }
@@ -666,10 +673,10 @@ void IN_JoyMove (usercmd_t *cmd)
 	moveDeadzone = IN_ApplyDeadzone(moveRaw, joy_deadzone.value);
 	lookDeadzone = IN_ApplyDeadzone(lookRaw, joy_deadzone.value);
 
-	moveEased = IN_ApplyMoveEasing(moveDeadzone);
-	lookEased = IN_ApplyLookEasing(lookDeadzone, joy_exponent.value);
+	moveEased = IN_ApplyMoveEasing(moveDeadzone, joy_exponent_move.value);
+	lookEased = IN_ApplyEasing(lookDeadzone, joy_exponent.value);
 	
-	if (in_speed.state & 1)
+	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 		speed = cl_movespeedkey.value;
 	else
 		speed = 1;
@@ -677,17 +684,17 @@ void IN_JoyMove (usercmd_t *cmd)
 	cmd->sidemove += (cl_sidespeed.value * speed * moveEased.x);
 	cmd->forwardmove -= (cl_forwardspeed.value * speed * moveEased.y);
 
-	cl.aimangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_frametime;
-	cl.aimangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_frametime;
+	cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_frametime;
+	cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_frametime;
 
 	if (lookEased.x != 0 || lookEased.y != 0)
 		V_StopPitchDrift();
 
 	/* johnfitz -- variable pitch clamping */
-	if (cl.aimangles[PITCH] > cl_maxpitch.value)
-		cl.aimangles[PITCH] = cl_maxpitch.value;
-	if (cl.aimangles[PITCH] < cl_minpitch.value)
-		cl.aimangles[PITCH] = cl_minpitch.value;
+	if (cl.viewangles[PITCH] > cl_maxpitch.value)
+		cl.viewangles[PITCH] = cl_maxpitch.value;
+	if (cl.viewangles[PITCH] < cl_minpitch.value)
+		cl.viewangles[PITCH] = cl_minpitch.value;
 #endif
 }
 
@@ -704,7 +711,7 @@ void IN_MouseMove(usercmd_t *cmd)
 	if ( (in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1) ))
 		cmd->sidemove += m_side.value * dmx;
 	else
-		cl.aimangles[YAW] -= m_yaw.value * dmx;
+		cl.viewangles[YAW] -= m_yaw.value * dmx;
 
 	if (in_mlook.state & 1)
 	{
@@ -714,12 +721,12 @@ void IN_MouseMove(usercmd_t *cmd)
 
 	if ( (in_mlook.state & 1) && !(in_strafe.state & 1))
 	{
-		cl.aimangles[PITCH] += m_pitch.value * dmy;
+		cl.viewangles[PITCH] += m_pitch.value * dmy;
 		/* johnfitz -- variable pitch clamping */
-		if (cl.aimangles[PITCH] > cl_maxpitch.value)
-			cl.aimangles[PITCH] = cl_maxpitch.value;
-		if (cl.aimangles[PITCH] < cl_minpitch.value)
-			cl.aimangles[PITCH] = cl_minpitch.value;
+		if (cl.viewangles[PITCH] > cl_maxpitch.value)
+			cl.viewangles[PITCH] = cl_maxpitch.value;
+		if (cl.viewangles[PITCH] < cl_minpitch.value)
+			cl.viewangles[PITCH] = cl_minpitch.value;
 	}
 	else
 	{
@@ -748,11 +755,21 @@ void IN_UpdateInputMode (void)
 		textmode = want_textmode;
 #if !defined(USE_SDL2)
 		SDL_EnableUNICODE(textmode);
+		if (in_debugkeys.value)
+			Con_Printf("SDL_EnableUNICODE %d time: %g\n", textmode, Sys_DoubleTime());
 #else
 		if (textmode)
+		{
 			SDL_StartTextInput();
+			if (in_debugkeys.value)
+				Con_Printf("SDL_StartTextInput time: %g\n", Sys_DoubleTime());
+		}
 		else
+		{
 			SDL_StopTextInput();
+			if (in_debugkeys.value)
+				Con_Printf("SDL_StopTextInput time: %g\n", Sys_DoubleTime());
+		}
 #endif
 	}
 }
@@ -959,7 +976,7 @@ static inline int IN_SDL2_ScancodeToQuakeKey(SDL_Scancode scancode)
 #if defined(USE_SDL2)
 static void IN_DebugTextEvent(SDL_Event *event)
 {
-	Con_Printf ("SDL_TEXTINPUT '%s'\n", event->text.text);
+	Con_Printf ("SDL_TEXTINPUT '%s' time: %g\n", event->text.text, Sys_DoubleTime());
 }
 #endif
 
@@ -967,15 +984,17 @@ static void IN_DebugKeyEvent(SDL_Event *event)
 {
 	const char *eventtype = (event->key.state == SDL_PRESSED) ? "SDL_KEYDOWN" : "SDL_KEYUP";
 #if defined(USE_SDL2)
-	Con_Printf ("%s scancode: '%s' keycode: '%s'\n",
+	Con_Printf ("%s scancode: '%s' keycode: '%s' time: %g\n",
 		eventtype,
 		SDL_GetScancodeName(event->key.keysym.scancode),
-		SDL_GetKeyName(event->key.keysym.sym));
+		SDL_GetKeyName(event->key.keysym.sym),
+		Sys_DoubleTime());
 #else
-	Con_Printf ("%s sym: '%s' unicode: %04x\n",
+	Con_Printf ("%s sym: '%s' unicode: %04x time: %g\n",
 		eventtype,
 		SDL_GetKeyName(event->key.keysym.sym),
-		(int)event->key.keysym.unicode);
+		(int)event->key.keysym.unicode,
+		Sys_DoubleTime());
 #endif
 }
 

@@ -74,6 +74,7 @@ typedef struct
 	byte		signon_buf[MAX_MSGLEN-2]; //johnfitz -- was 8192, now uses MAX_MSGLEN
 
 	unsigned	protocol; //johnfitz
+	unsigned	protocolflags;
 } server_t;
 
 
@@ -210,8 +211,8 @@ void SV_AddUpdates (void);
 void SV_ClientThink (void);
 void SV_AddClientToServer (struct qsocket_s	*ret);
 
-void SV_ClientPrintf (const char *fmt, ...) __attribute__((__format__(__printf__,1,2)));
-void SV_BroadcastPrintf (const char *fmt, ...) __attribute__((__format__(__printf__,1,2)));
+void SV_ClientPrintf (const char *fmt, ...) FUNC_PRINTF(1,2);
+void SV_BroadcastPrintf (const char *fmt, ...) FUNC_PRINTF(1,2);
 
 void SV_Physics (void);
 

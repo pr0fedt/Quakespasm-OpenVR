@@ -691,7 +691,7 @@ void ED_WriteGlobals (FILE *f)
 ED_ParseGlobals
 =============
 */
-void ED_ParseGlobals (const char *data)
+const char *ED_ParseGlobals (const char *data)
 {
 	char	keyname[64];
 	ddef_t	*key;
@@ -705,7 +705,7 @@ void ED_ParseGlobals (const char *data)
 		if (!data)
 			Host_Error ("ED_ParseEntity: EOF without closing brace");
 
-		strcpy (keyname, com_token);
+		q_strlcpy (keyname, com_token, sizeof(keyname));
 
 	// parse value
 		data = COM_Parse (data);
@@ -725,6 +725,7 @@ void ED_ParseGlobals (const char *data)
 		if (!ED_ParseEpair ((void *)pr_globals, key, com_token))
 			Host_Error ("ED_ParseGlobals: parse error");
 	}
+	return data;
 }
 
 //============================================================================
@@ -770,12 +771,13 @@ Can parse either fields or globals
 returns false if error
 =============
 */
-static qboolean	ED_ParseEpair (void *base, ddef_t *key, const char *s)
+static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s)
 {
 	int		i;
 	char	string[128];
 	ddef_t	*def;
 	char	*v, *w;
+	char	*end;
 	void	*d;
 	dfunction_t	*func;
 
@@ -792,16 +794,27 @@ static qboolean	ED_ParseEpair (void *base, ddef_t *key, const char *s)
 		break;
 
 	case ev_vector:
-		strcpy (string, s);
+		q_strlcpy (string, s, sizeof(string));
+		end = (char *)string + strlen(string);
 		v = string;
 		w = string;
-		for (i = 0; i < 3; i++)
+
+		for (i = 0; i < 3 && (w <= end); i++) // ericw -- added (w <= end) check
 		{
+		// set v to the next space (or 0 byte), and change that char to a 0 byte
 			while (*v && *v != ' ')
 				v++;
 			*v = 0;
 			((float *)d)[i] = atof (w);
 			w = v = v+1;
+		}
+		// ericw -- fill remaining elements to 0 in case we hit the end of string
+		// before reading 3 floats.
+		if (i < 3)
+		{
+			Con_DWarning ("Avoided reading garbage for \"%s\" \"%s\"\n", PR_GetString(key->s_name), s);
+			for (; i < 3; i++)
+				((float *)d)[i] = 0.0f;
 		}
 		break;
 
@@ -883,7 +896,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		if (!strcmp(com_token, "light"))
 			strcpy (com_token, "light_lev");	// hack for single light def
 
-		strcpy (keyname, com_token);
+		q_strlcpy (keyname, com_token, sizeof(keyname));
 
 		// another hack to fix keynames with trailing spaces
 		n = strlen(keyname);

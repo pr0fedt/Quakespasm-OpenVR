@@ -1,4 +1,4 @@
-# GNU Makefile for QuakeSpasm unix targets, Sep. 10, 2014
+# GNU Makefile for QuakeSpasm unix targets.
 # You need the SDL library fully installed.
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" for unusual SDL installations.
@@ -16,9 +16,9 @@ USE_CODEC_FLAC=0
 USE_CODEC_MP3=1
 USE_CODEC_VORBIS=1
 USE_CODEC_OPUS=0
-# either mikmod (preferred) or modplug, not both
+# either mikmod or xmp
 USE_CODEC_MIKMOD=0
-USE_CODEC_MODPLUG=0
+USE_CODEC_XMP=0
 USE_CODEC_UMX=0
 
 # which library to use for mp3 decoding: mad or mpg123
@@ -168,9 +168,9 @@ ifeq ($(USE_CODEC_MIKMOD),1)
 CFLAGS+= -DUSE_CODEC_MIKMOD
 CODECLIBS+= -lmikmod
 endif
-ifeq ($(USE_CODEC_MODPLUG),1)
-CFLAGS+= -DUSE_CODEC_MODPLUG
-CODECLIBS+= -lmodplug
+ifeq ($(USE_CODEC_XMP),1)
+CFLAGS+= -DUSE_CODEC_XMP
+CODECLIBS+= -lxmp
 endif
 ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
@@ -193,7 +193,7 @@ DEFAULT_TARGET := quakespasm
 # ---------------------------
 
 %.o:	%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 
 # ----------------------------------------------------------------------------
 # objects
@@ -207,7 +207,7 @@ MUSIC_OBJS:= bgmusic.o \
 	snd_opus.o \
 	$(mp3_obj) \
 	snd_mikmod.o \
-	snd_modplug.o \
+	snd_xmp.o \
 	snd_umx.o
 COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
 SYSOBJ_SND := snd_sdl.o
@@ -289,6 +289,8 @@ OBJS := strlcat.o \
 quakespasm:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
+
+image.o: lodepng.c lodepng.h stb_image_write.h
 
 release:	quakespasm
 debug:

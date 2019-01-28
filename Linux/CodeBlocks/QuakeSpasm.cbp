@@ -262,10 +262,6 @@
 		<Unit filename="../../Quake/snd_mix.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="../../Quake/snd_modplug.c">
-		<Unit filename="../../Quake/snd_modplug.h" />
-			<Option compilerVar="CC" />
-		</Unit>
 		<Unit filename="../../Quake/snd_mp3.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -289,6 +285,10 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../../Quake/snd_wave.h" />
+		<Unit filename="../../Quake/snd_xmp.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../Quake/snd_xmp.h" />
 		<Unit filename="../../Quake/spritegn.h" />
 		<Unit filename="../../Quake/strl_fn.h" />
 		<Unit filename="../../Quake/strlcat.c">

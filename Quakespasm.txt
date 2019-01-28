@@ -8,6 +8,9 @@
   2. Downloads
   3. Hints
      3.1 Music Playback
+     3.2 Controller Support
+        3.2.1 Cvars
+        3.2.2 Buttons
 
   4. Compiling and Installation
      4.1 Linux/Unix
@@ -16,29 +19,32 @@
 
   5. Known Bugs
   6. Changes
-     6.1 Changes in 0.91.1
-     6.2 Changes in 0.91.0
-        6.2.1 Bugfixes
-        6.2.2 Visual improvements
-        6.2.3 Interface improvements
-        6.2.4 Code cleanup / Other
-        6.2.5 Raised limits
-     6.3 Changes in 0.90.1
-        6.3.1 Bugfixes
-        6.3.2 Performance
-        6.3.3 Visual improvements
-        6.3.4 Interface improvements
-        6.3.5 Code cleanup
-     6.4 Changes in 0.90.0
-     6.5 Changes in 0.85.9
-     6.6 Changes in 0.85.8
-     6.7 Changes in 0.85.7
-     6.8 Changes in 0.85.6
-     6.9 Changes in 0.85.5
-     6.10 Changes in 0.85.4
-     6.11 Changes in 0.85.3
-     6.12 Changes in 0.85.2
-     6.13 Changes in 0.85.1
+     6.1 Changes in 0.93.1
+     6.2 Changes in 0.93.0
+     6.3 Changes in 0.92.1
+     6.4 Changes in 0.92.0
+     6.5 Changes in 0.91.0
+        6.5.1 Bugfixes
+        6.5.2 Visual improvements
+        6.5.3 Interface improvements
+        6.5.4 Code cleanup / Other
+        6.5.5 Raised limits
+     6.6 Changes in 0.90.1
+        6.6.1 Bugfixes
+        6.6.2 Performance
+        6.6.3 Visual improvements
+        6.6.4 Interface improvements
+        6.6.5 Code cleanup
+     6.7 Changes in 0.90.0
+     6.8 Changes in 0.85.9
+     6.9 Changes in 0.85.8
+     6.10 Changes in 0.85.7
+     6.11 Changes in 0.85.6
+     6.12 Changes in 0.85.5
+     6.13 Changes in 0.85.4
+     6.14 Changes in 0.85.3
+     6.15 Changes in 0.85.2
+     6.16 Changes in 0.85.1
 
   7. Todo
   8. Copyright
@@ -48,18 +54,22 @@
   ______________________________________________________________________
 
 
-  Page last edited: January 2016
+  Page last edited: Feb. 2018
 
 
   1.  About
 
-  QuakeSpasm <http://quakespasm.sourceforge.net> is a Quake 1 engine
-  based on the SDL port of FitzQuake
+  QuakeSpasm <http://quakespasm.sourceforge.net> is a modern, cross-
+  platform Quake 1 engine based on FitzQuake
   <http://www.celephais.net/fitzquake>.
 
-  It includes support for 64 bit CPUs and custom music playback, and
-  includes a new sound driver, some graphical niceities, and numerous
-  bug-fixes and other improvements.
+  It includes support for 64 bit CPUs and custom music playback, a new
+  sound driver, some graphical niceities, and numerous bug-fixes and
+  other improvements.
+
+  Quakespasm utilizes either the SDL or SDL2 frameworks, so choose
+  which one works best for you.  SDL is probably less buggy, but SDL2
+  has nicer features and smoother mouse input - though no CD support.
 
 
   2.  Downloads
@@ -80,8 +90,9 @@
      this file alongside your id1 directory to enable the custom console
      background and other minor features.
 
-  o  For different sound drivers use "SDL_AUDIODRIVER=DRIVER
-     ./quakespasm" , where DRIVER may be alsa, dsp, pulse, esd ...
+  o  For different sound backend drivers use :
+     "SDL_AUDIODRIVER=DRIVER ./quakespasm"
+     where DRIVER may be alsa, dsp, pulse, esd ...
 
   o  Shift+Escape draws the Console.
 
@@ -118,6 +129,91 @@
   o  Use the "-noextmusic" option to disable this feature.
 
   o  See Quakespasm-Music.txt for more details.
+
+  3.2.  Controller Support
+
+  The SDL2 variant of Quakespasm supports Xbox 360 style game
+  controllers.
+
+  The default configuration uses the left analog stick for movement and
+  the right for looking.
+
+  If your controller doesn't work you can try placing this file
+  https://raw.githubusercontent.com/gabomdq/SDL_GameControllerDB/master/gamecontrollerdb.txt
+  in your Quake directory, it is a community-maintained database that
+  adds support for more controllers to SDL2.
+
+  3.2.1.  Cvars
+
+  o  joy_deadzone - Fraction of the stick travel to be deadzone, between
+     0 and 1. Default 0.175.
+
+  o  joy_deadzone_trigger - Fraction of trigger range required to
+     register a button press on the analog triggers, between 0 and 1.
+     Default 0.2.
+
+  o  joy_sensitivity_yaw/pitch - Max angular speed in degrees/second
+     when looking. Defaults are 300 for yaw (turning left/right) and 150
+     for pitch (up/down).
+
+  o  joy_exponent - For the look stick, the stick displacement (between
+     0 and 1) is raised to this power. Default is 3. A value of 1 would
+     give a linear relationship between stick displacement and fraction
+     of the maximum angular speed.
+
+  o  joy_invert - Set to 1 to invert the vertical axis of the look
+     stick.
+
+  o  joy_swapmovelook - Set to 1 to swap the left and right analog stick
+     functions. Default 0, move on the left stick, look on the right
+     stick.
+
+  o  joy_enable - Set to 0 to disable controller support. Default 1.
+
+  3.2.2.  Buttons
+
+  Some of the controller buttons are hardcoded to allow navigating the
+  menu:
+
+  o  Back - alias for TAB
+
+  o  Start - alias for ESC
+
+  o  DPad, analog sticks - mapped to arrow keys
+
+  o  A Button - alias for ENTER in menus
+
+  o  B Button - alias for ESC in menus
+
+  These buttons can be bound normally:
+
+  o  LTRIGGER - Left trigger
+
+  o  RTRIGGER - Right trigger
+
+  o  LSHOULDER - Left shoulder button
+
+  o  RSHOULDER - Right shoulder button
+
+  o  LTHUMB - Clicking the left thumbstick
+
+  o  RTHUMB - Clicking the right thumbstick
+
+  o  ABUTTON
+
+  o  BBUTTON
+
+  o  XBUTTON
+
+  o  YBUTTON
+
+  quakespasm.pak contains a default.cfg which has been updated to give
+  some default bindings. L/R shoulder buttons are bound to weapon
+  switching, and L/R triggers are jump and attack.
+
+  The controller support started as Jeremiah Sypult's implementation in
+  Quakespasm-Rift and also uses ideas and code from LordHavoc
+  (DarkPlaces).
 
 
   4.  Compiling and Installation
@@ -183,28 +279,167 @@
   help.
 
   o  Gamma patched libSDL (i686-linux)
-     http://sourceforge.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched.tgz/download
+     http://sf.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched.tgz/download
 
   o  Gamma patched libSDL (x86_64-linux)
-     http://sourceforge.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched-AMD64.tgz/download
-
-  The "game" command doesn't execute quake.rc in the new game directory
-  being switched to. This means any custom key bindings in a mod's
-  config.cfg or special settings in a quake.rc won't be loaded. The only
-  workaround is launching the engine with the -game command-line switch
-  instead of using the game console command. Or, after running the game
-  command, you can run "exec quake.rc" by yourself (YMMV).
+     http://sf.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched-AMD64.tgz/download
 
 
   6.  Changes
 
 
-  6.1.  Changes in 0.91.1
+  6.1.  Changes in 0.93.1
+
+  o  Fixed a fog regression which was introduced in 0.93.0.
+
+  o  Fixed a crash (buffer overflow) with invalid vis data.
+
+  o  Fixed buttons crushing players in 64-bit builds.
+
+  o  Change controller movement to use cubic easing by default; added
+    "joy_exponent_move" cvar.
+
+  o  config.cfg is no longer written in case of a Sys_Error.
+
+  o  Fixed Opus encoded cd tracks not being recognized as ripped tracks.
+
+  o  Update the third-party libraries. Other fixes/cleanups.
 
 
-  6.2.  Changes in 0.91.0
+  6.2.  Changes in 0.93.0
 
-  6.2.1.  Bugfixes
+  o  Raise default "joy_deadzone_trigger" cvar to 0.2.
+
+  o  Raise console buffer size to 1MB.
+
+  o  Raise MAX_STATIC_ENTITIES from 512 to 4096.
+
+  o  Raise MAX_STACK_DEPTH from 32 to 64.
+
+  o  Raise command buffer size from 8K to 256K to support large configs.
+
+  o  Remove MAX_EFRAGS and MAX_MAP_LEAFS limits.
+
+  o  Remove "Loadgame buffer overflow" limit, which could happen when
+     loading DP or QSS saves.
+
+  o  Adjust "exceeds standard limit of" debug warnings to include the
+     actual QS limit.
+
+  o  Change "game" command to now exec quake.rc.
+
+  o  Change "games" / "mods" commands to list all subdirectories.
+
+  o  Restore vid_refreshrate from fitzquake-0.85 for SDL2 builds.
+
+  o  Alpha-masked model support. (MF_HOLEY: 0x4000).
+
+  o  Invalid skin index now draws skin 0 (WinQuake behaviour) instead of
+     blue checkerboard.
+
+  o  Change default screenshot format to png. The 'screenshot' command
+     now supports optional format (tga, png or jpg) and quality (1-100)
+     arguments.
+
+  o  Revert "always run" changes from 0.85.9 and move the QuakeSpasm
+     customizations to a new "cl_alwaysrun" cvar: Set to 1 in order to
+     scale forward/side/up speed by "cl_movespeedkey" (usually 2), and
+     to make "speedkey" act as "slowkey".
+
+  o  Change "always run" menu option to offer three choices:
+   - off        (cl_alwaysrun 0, cl_forwardspeed 200, cl_backspeed 200)
+   - vanilla    (cl_alwaysrun 0, cl_forwardspeed 400, cl_backspeed 400)
+   - quakespasm (cl_alwaysrun 1, cl_forwardspeed 200, cl_backspeed 200)
+
+  o  New "r_scale" cvar. Set to 2, 3, or 4 to render the view at 1/2,
+     1/3, or 1/4 resolution.
+
+  o  New "r_viewmodel_quake" cvar. Set to 1 for WinQuake gun position
+     (from MarkV).
+
+  o  New "find" / "apropos" command, searches for commands/cvar names
+     for the given substring (from Spike).
+
+  o  New "randmap" command for loading a random map.
+
+  o  New "gl_cshiftpercent_contents", "gl_cshiftpercent_damage",
+     "gl_cshiftpercent_bonus", "gl_cshiftpercent_powerup" cvars for
+     tuning the strength of specic view blends.
+
+  o  GL2 renderer: use a GLSL shader for world faces. Fixes reports of
+     integrated+discrete GPU laptops having inconsistent fog rendering.
+
+  o  Fix macOS startup delay (avoid calling gethostbyname() for ".local"
+     hostnames).
+
+  o  Fix memory corruption in PF_lightstyle with out of bounds
+     lightstyles.
+
+  o  Fix crash in BoundPoly with polygons extending beyond +/-9999.
+
+  o  Fix QS window to stay on the current monitor when changing video
+     modes (SDL2 only).
+
+  o  Fix possible freeze in SV_TouchLinks regardless of what QC does in
+     the touch function.
+
+  o  Fix for maps with empty strings for vector keys (e.g. "origin");
+     don't read uninitialized memory.
+
+  o  Support for Open Watcom compiler.
+
+  o  Update the third-party libraries.
+
+
+  6.3.  Changes in 0.92.1
+
+  o  Fixed large menu scale factors (was broken in 0.92.0).
+
+  o  Fixed PAUSE key (was broken in 0.92.0).
+
+  o  Updated some of the third-party libraries.
+
+
+  6.4.  Changes in 0.92.0
+
+  o  SDL2 Game Controller support.
+
+  o  Contrast support with new "contrast" cvar, behaving the same as
+     MarkV. It may be a useful alternative to the existing gamma control
+     for laptops in a bright environment, etc. Raising contrast gives
+     less of a gray/washed out look than raising gamma, but at a
+     disadvantage: colors near white get clipped to white.
+
+  o  RMQ protocol (999) support, adapted from RMQEngine.
+
+  o  New "-protocol x" command line option. Accepted values for 'x' are
+     15 (NetQuake), 666 (FitzQuake, default), and 999 (RMQ).
+
+  o  New "setpos" console command.
+
+  o  New "vid_borderless" cvar for getting a borderless window.
+
+  o  Increased MAX_MAP_LEAFS from 65535 to 70000 and MAX_LIGHTMAPS from
+     256 to 512 in order to handle the oms3 map pack.
+
+  o  Server edicts are now allocated using malloc instead of allocating
+     on the hunk.
+
+  o  gl_clear now defaults to 1.
+
+  o  Fix items falling out of the world on oms3.bsp on SSE builds.
+
+  o  Worked around an OSX 10.6 driver bug when using FSAA, which was
+     leading to an unplayable HOM effect on the rest of the screen.
+
+  o  Fix wrong trace endpoint from the tracepos console command.
+
+  o  Updated some of the third-party libraries. Other fixes/clean-ups.
+
+
+  6.5.  Changes in 0.91.0
+
+  6.5.1.  Bugfixes
 
   o  Fix unwanted fog mode change upon video restart.
 
@@ -240,7 +475,7 @@
 
   o  Prevent a possible vulnerability in MSG_ReadString (old Q1/Q2 bug).
 
-  6.2.2.  Visual improvements
+  6.5.2.  Visual improvements
 
   o  New cvars r_lavaalpha, r_slimealpha, r_telealpha for fine-tuning
      specific liquid opacities (from DirectQ/RMQEngine, non-archived,
@@ -251,18 +486,18 @@
   o  GLSL gamma is now supported on older hardware without NPOT
      extension.
 
-  6.2.3.  Interface improvements
+  6.5.3.  Interface improvements
 
   o  New r_pos command to show player position.
 
   o  NaN detection in traceline with "developer 1" set now warns instead
      of errors.
 
-  6.2.4.  Code cleanup / Other
+  6.5.4.  Code cleanup / Other
 
   o  Update third-party libraries.
 
-  6.2.5.  Raised limits
+  6.5.5.  Raised limits
 
   o  Default max_edicts 8192 (was 2048) and no longer saved to
      config.cfg.
@@ -274,9 +509,9 @@
   o  Raised MAX_SFX to 1024 (was 512).
 
 
-  6.3.  Changes in 0.90.1
+  6.6.  Changes in 0.90.1
 
-  6.3.1.  Bugfixes
+  6.6.1.  Bugfixes
 
   o  Fix dynamic light artifact where changing lightmap are rendered one
      frame late (bug introduced in 0.90.0).
@@ -299,13 +534,13 @@
 
   o  Fix crash on out-of-bounds skin number.
 
-  6.3.2.  Performance
+  6.6.2.  Performance
 
   o  Use multithreaded OpenGL on OS X for better performance.
 
   o  New, faster mdl renderer using GLSL. Disable with "-noglslalias".
 
-  6.3.3.  Visual improvements
+  6.6.3.  Visual improvements
 
   o  New gamma correction implementation using GLSL. Fixes all known
      gamma issues (affecting the full display, persisting after
@@ -319,7 +554,7 @@
 
   o  r_noshadow_list cvar added (from MarkV.)
 
-  6.3.4.  Interface improvements
+  6.6.4.  Interface improvements
 
   o  Support pausing demo playback with the "pause" command.
 
@@ -336,14 +571,14 @@
      "trying to load ent", "bad chunk length", "meshing",
      "PR_AlocStringSlots: realloc'ing"
 
-  6.3.5.  Code cleanup
+  6.6.5.  Code cleanup
 
   o  Clean up IDE project files to build on fresh systems.
 
   o  Update 3rd-party libraries.
 
 
-  6.4.  Changes in 0.90.0
+  6.7.  Changes in 0.90.0
 
   o  Fix issues on Windows systems with DPI scaling.
 
@@ -451,7 +686,7 @@
   o  Other fixes and clean-ups.
 
 
-  6.5.  Changes in 0.85.9
+  6.8.  Changes in 0.85.9
 
   o  Fixes for several undefined behaviors in C code (gcc-4.8 support.)
 
@@ -498,7 +733,7 @@
   o  Several other minor fixes/cleanups.
 
 
-  6.6.  Changes in 0.85.8
+  6.9.  Changes in 0.85.8
 
   o  Made Quake shareware 1.00 and 1.01 versions to be recognized
      properly.
@@ -545,7 +780,7 @@
   o  Miscellaneous source code cleanups.
 
 
-  6.7.  Changes in 0.85.7
+  6.10.  Changes in 0.85.7
 
   o  Added support for cross-level demo playback
 
@@ -571,7 +806,7 @@
   o  Several other small changes mostly invisible to the end-user
 
 
-  6.8.  Changes in 0.85.6
+  6.11.  Changes in 0.85.6
 
   o  More work for string buffer safety
 
@@ -584,7 +819,7 @@
   o  Minor SDL video fixes.
 
 
-  6.9.  Changes in 0.85.5
+  6.12.  Changes in 0.85.5
 
   o  SDL input driver updated adding native keymap and dead key support
      to the console
@@ -615,7 +850,7 @@
   o  Several code updates from uHexen2 project, several code cleanups.
 
 
-  6.10.  Changes in 0.85.4
+  6.13.  Changes in 0.85.4
 
   o  Implement music (OGG, MP3, WAV) playback
 
@@ -643,7 +878,7 @@
   o  Other minor sound and cdaudio updates
 
 
-  6.11.  Changes in 0.85.3
+  6.14.  Changes in 0.85.3
 
   o  Fix the "-dedicated" option (thanks Oz) and add platform specific
      networking code (default) rather than SDL_net
@@ -680,7 +915,7 @@
      some other CD tweaks.
 
 
-  6.12.  Changes in 0.85.2
+  6.15.  Changes in 0.85.2
 
   o  Replace the old "Screen size" slider with a "Scale" slider
 
@@ -708,7 +943,7 @@
   o  Add OSX Makefile (tested?)
 
 
-  6.13.  Changes in 0.85.1
+  6.16.  Changes in 0.85.1
 
   o  64 bit CPU support
 
@@ -772,9 +1007,9 @@
   o  Bug reports:
      http://sourceforge.net/p/quakespasm/bugs/?source=navbar
 
-  o  Ozkan <mailto:gmail - dot - com - username - sezeroz> (project
-     leader), Eric <mailto:gmail - dot - com - username - ewasylishen>,
-     Sander <mailto:gmail - dot - com - username - a.h.vandijk>,
+  o  Ozkan <mailto:gmail - dot - com - username - sezeroz>
+     Eric <mailto:gmail - dot - com - username - ewasylishen>
+     Sander <mailto:gmail - dot - com - username - a.h.vandijk>
      Stevenaaus <mailto:yahoo - dot - com - username - stevenaaus>
 
 

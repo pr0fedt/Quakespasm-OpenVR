@@ -1,6 +1,6 @@
 # GNU Makefile for compiling Mac OS X version of QuakeSpasm.
 # Usage: "make -f Makefile.darwin"
-# To cross-compile on Linux hosts, see the "build_cross_osx*.sh" scripts.
+# To cross-compile on Linux hosts, see the build_cross_osx*.sh scripts.
 # "make DEBUG=1" to build a debug client.
 # "make SDL_FRAMEWORK_PATH=/path/to/Frameworks" to specify the directory
 #    containing SDL.framework and override the locally included versions.
@@ -18,9 +18,9 @@ USE_CODEC_FLAC=1
 USE_CODEC_MP3=1
 USE_CODEC_VORBIS=1
 USE_CODEC_OPUS=1
-# either mikmod (preferred) or modplug, not both
+# either mikmod or xmp
 USE_CODEC_MIKMOD=1
-USE_CODEC_MODPLUG=0
+USE_CODEC_XMP=0
 USE_CODEC_UMX=1
 
 # which library to use for mp3 decoding: mad or mpg123
@@ -65,9 +65,10 @@ USE_RPATH=1
 endif
 ifeq ($(USE_SDL2),1)
 # sdl2 needs targetting 10.5+
+# as of v2.0.5, sdl2 targets 10.6+
 ifeq ($(MACH_TYPE),x86)
-CFLAGS  +=-mmacosx-version-min=10.5
-LDFLAGS +=-mmacosx-version-min=10.5
+CFLAGS  +=-mmacosx-version-min=10.6
+LDFLAGS +=-mmacosx-version-min=10.6
 USE_RPATH=1
 endif
 endif
@@ -186,11 +187,11 @@ CODEC_INC = -I../MacOSX/codecs/include
 CODEC_LINK= -L../MacOSX/codecs/lib
 CODECLIBS+= -lmikmod
 endif
-ifeq ($(USE_CODEC_MODPLUG),1)
-CFLAGS+= -DUSE_CODEC_MODPLUG
+ifeq ($(USE_CODEC_XMP),1)
+CFLAGS+= -DUSE_CODEC_XMP
 CODEC_INC = -I../MacOSX/codecs/include
 CODEC_LINK= -L../MacOSX/codecs/lib
-CODECLIBS+= -lmodplug
+CODECLIBS+= -lxmp
 endif
 ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
@@ -214,11 +215,11 @@ DEFAULT_TARGET := quakespasm
 # ---------------------------
 
 %.o:	%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 %.o:	%.m
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 %.o:	../MacOSX/%.m
-	$(CC) $(DFLAGS) -c -I../MacOSX $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+	$(CC) $(DFLAGS) -c -I../MacOSX $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 
 # ----------------------------------------------------------------------------
 # objects
@@ -232,7 +233,7 @@ MUSIC_OBJS:= bgmusic.o \
 	snd_opus.o \
 	$(mp3_obj) \
 	snd_mikmod.o \
-	snd_modplug.o \
+	snd_xmp.o \
 	snd_umx.o
 COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
 SYSOBJ_SND := snd_sdl.o
@@ -314,6 +315,8 @@ OBJS := strlcat.o \
 quakespasm:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
+
+image.o: lodepng.c lodepng.h stb_image_write.h
 
 release:	quakespasm
 debug:

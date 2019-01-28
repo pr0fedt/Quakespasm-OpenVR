@@ -22,7 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // view.c -- player eye positioning
 
 #include "quakedef.h"
-#include "vr.h"
 
 /*
 
@@ -61,14 +60,18 @@ cvar_t	v_idlescale = {"v_idlescale", "0", CVAR_NONE};
 cvar_t	crosshair = {"crosshair", "0", CVAR_ARCHIVE};
 
 cvar_t	gl_cshiftpercent = {"gl_cshiftpercent", "100", CVAR_NONE};
+cvar_t	gl_cshiftpercent_contents = {"gl_cshiftpercent_contents", "100", CVAR_NONE}; // QuakeSpasm
+cvar_t	gl_cshiftpercent_damage = {"gl_cshiftpercent_damage", "100", CVAR_NONE}; // QuakeSpasm
+cvar_t	gl_cshiftpercent_bonus = {"gl_cshiftpercent_bonus", "100", CVAR_NONE}; // QuakeSpasm
+cvar_t	gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_NONE}; // QuakeSpasm
+
+cvar_t	r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
 
 float	v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
 extern	int			in_forward, in_forward2, in_back;
 
 vec3_t	v_punchangles[2]; //johnfitz -- copied from cl.punchangle.  0 is current, 1 is previous value. never the same unless map just loaded
-
-extern cvar_t vr_enabled;
 
 /*
 ===============
@@ -143,12 +146,6 @@ cvar_t	v_centerspeed = {"v_centerspeed","500", CVAR_NONE};
 
 void V_StartPitchDrift (void)
 {
-	if (vr_enabled.value)
-	{
-		VR_ResetOrientation();
-		return;
-	}
-
 #if 1
 	if (cl.laststop == cl.time)
 	{
@@ -187,7 +184,7 @@ void V_DriftPitch (void)
 {
 	float		delta, move;
 
-	if (noclip_anglehack || !cl.onground || cls.demoplayback || vr_enabled.value)
+	if (noclip_anglehack || !cl.onground || cls.demoplayback )
 	//FIXME: noclip_anglehack is set on the server, so in a nonlocal game this won't work.
 	{
 		cl.driftmove = 0;
@@ -279,7 +276,7 @@ void V_ParseDamage (void)
 	armor = MSG_ReadByte ();
 	blood = MSG_ReadByte ();
 	for (i=0 ; i<3 ; i++)
-		from[i] = MSG_ReadCoord ();
+		from[i] = MSG_ReadCoord (cl.protocolflags);
 
 	count = blood*0.5 + armor*0.5;
 	if (count < 10)
@@ -436,6 +433,12 @@ void V_CalcBlend (void)
 {
 	float	r, g, b, a, a2;
 	int		j;
+	cvar_t	*cshiftpercent_cvars[NUM_CSHIFTS] = {
+		&gl_cshiftpercent_contents,
+		&gl_cshiftpercent_damage,
+		&gl_cshiftpercent_bonus,
+		&gl_cshiftpercent_powerup
+	};
 
 	r = 0;
 	g = 0;
@@ -453,6 +456,9 @@ void V_CalcBlend (void)
 		//johnfitz
 
 		a2 = ((cl.cshifts[j].percent * gl_cshiftpercent.value) / 100.0) / 255.0;
+		// QuakeSpasm -- also scale by the specific gl_cshiftpercent_* cvar
+		a2 *= (cshiftpercent_cvars[j]->value / 100.0);
+		// QuakeSpasm
 		if (!a2)
 			continue;
 		a = a + a2*(1-a);
@@ -580,15 +586,15 @@ void CalcGunAngle (void)
 	static float oldyaw = 0;
 	static float oldpitch = 0;
 
-	yaw = r_refdef.aimangles[YAW];
-	pitch = -r_refdef.aimangles[PITCH];
+	yaw = r_refdef.viewangles[YAW];
+	pitch = -r_refdef.viewangles[PITCH];
 
-	yaw = angledelta(yaw - r_refdef.aimangles[YAW]) * 0.4;
+	yaw = angledelta(yaw - r_refdef.viewangles[YAW]) * 0.4;
 	if (yaw > 10)
 		yaw = 10;
 	if (yaw < -10)
 		yaw = -10;
-	pitch = angledelta(-pitch - r_refdef.aimangles[PITCH]) * 0.4;
+	pitch = angledelta(-pitch - r_refdef.viewangles[PITCH]) * 0.4;
 	if (pitch > 10)
 		pitch = 10;
 	if (pitch < -10)
@@ -619,8 +625,8 @@ void CalcGunAngle (void)
 	oldyaw = yaw;
 	oldpitch = pitch;
 
-	cl.viewent.angles[YAW] = r_refdef.aimangles[YAW] + yaw;
-	cl.viewent.angles[PITCH] = - (r_refdef.aimangles[PITCH] + pitch);
+	cl.viewent.angles[YAW] = r_refdef.viewangles[YAW] + yaw;
+	cl.viewent.angles[PITCH] = - (r_refdef.viewangles[PITCH] + pitch);
 
 	cl.viewent.angles[ROLL] -= v_idlescale.value * sin(cl.time*v_iroll_cycle.value) * v_iroll_level.value;
 	cl.viewent.angles[PITCH] -= v_idlescale.value * sin(cl.time*v_ipitch_cycle.value) * v_ipitch_level.value;
@@ -691,7 +697,7 @@ void V_CalcViewRoll (void)
 		v_dmg_time -= host_frametime;
 	}
 
-	if (cl.stats[STAT_HEALTH] <= 0 && !vr_enabled.value)
+	if (cl.stats[STAT_HEALTH] <= 0)
 	{
 		r_refdef.viewangles[ROLL] = 80;	// dead view angle
 		return;
@@ -717,14 +723,6 @@ void V_CalcIntermissionRefdef (void)
 	VectorCopy (ent->origin, r_refdef.vieworg);
 	VectorCopy (ent->angles, r_refdef.viewangles);
 	view->model = NULL;
-
-	if (vr_enabled.value)
-	{
-		r_refdef.viewangles[PITCH] = 0;
-		VectorCopy(r_refdef.viewangles, r_refdef.aimangles);
-		VR_AddOrientationToViewAngles(r_refdef.viewangles);
-		VR_SetAngles(r_refdef.viewangles);
-	}
 
 // allways idle in intermission
 	old = v_idlescale.value;
@@ -793,7 +791,7 @@ void V_CalcRefdef (void)
 	V_BoundOffsets ();
 
 // set up gun position
-	VectorCopy (cl.aimangles, view->angles);
+	VectorCopy (cl.viewangles, view->angles);
 
 	CalcGunAngle ();
 
@@ -805,6 +803,18 @@ void V_CalcRefdef (void)
 	view->origin[2] += bob;
 
 	//johnfitz -- removed all gun position fudging code (was used to keep gun from getting covered by sbar)
+	//MarkV -- restored this with r_viewmodel_quake cvar
+	if (r_viewmodel_quake.value)
+	{
+		if (scr_viewsize.value == 110)
+			view->origin[2] += 1;
+		else if (scr_viewsize.value == 100)
+			view->origin[2] += 2;
+		else if (scr_viewsize.value == 90)
+			view->origin[2] += 1;
+		else if (scr_viewsize.value == 80)
+			view->origin[2] += 0.5;
+	}
 
 	view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
 	view->frame = cl.stats[STAT_WEAPONFRAME];
@@ -916,6 +926,10 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_idlescale);
 	Cvar_RegisterVariable (&crosshair);
 	Cvar_RegisterVariable (&gl_cshiftpercent);
+	Cvar_RegisterVariable (&gl_cshiftpercent_contents); // QuakeSpasm
+	Cvar_RegisterVariable (&gl_cshiftpercent_damage); // QuakeSpasm
+	Cvar_RegisterVariable (&gl_cshiftpercent_bonus); // QuakeSpasm
+	Cvar_RegisterVariable (&gl_cshiftpercent_powerup); // QuakeSpasm
 
 	Cvar_RegisterVariable (&scr_ofsx);
 	Cvar_RegisterVariable (&scr_ofsy);
@@ -930,5 +944,7 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_kickroll);
 	Cvar_RegisterVariable (&v_kickpitch);
 	Cvar_RegisterVariable (&v_gunkick); //johnfitz
+	
+	Cvar_RegisterVariable (&r_viewmodel_quake); //MarkV
 }
 

@@ -288,6 +288,7 @@ void R_ReadPointFile_f (void)
 
 	Con_Printf ("Reading %s...\n", name);
 	c = 0;
+	org[0] = org[1] = org[2] = 0; // silence pesky compiler warnings
 	for ( ;; )
 	{
 		r = fscanf (f,"%f %f %f\n", &org[0], &org[1], &org[2]);
@@ -329,7 +330,7 @@ void R_ParseParticleEffect (void)
 	int			i, count, msgcount, color;
 
 	for (i=0 ; i<3 ; i++)
-		org[i] = MSG_ReadCoord ();
+		org[i] = MSG_ReadCoord (cl.protocolflags);
 	for (i=0 ; i<3 ; i++)
 		dir[i] = MSG_ReadChar () * (1.0/16);
 	msgcount = MSG_ReadByte ();

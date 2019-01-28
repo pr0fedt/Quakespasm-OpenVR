@@ -100,9 +100,9 @@ void MSG_WriteShort (sizebuf_t *sb, int c);
 void MSG_WriteLong (sizebuf_t *sb, int c);
 void MSG_WriteFloat (sizebuf_t *sb, float f);
 void MSG_WriteString (sizebuf_t *sb, const char *s);
-void MSG_WriteCoord (sizebuf_t *sb, float f);
-void MSG_WriteAngle (sizebuf_t *sb, float f);
-void MSG_WriteAngle16 (sizebuf_t *sb, float f); //johnfitz
+void MSG_WriteCoord (sizebuf_t *sb, float f, unsigned int flags);
+void MSG_WriteAngle (sizebuf_t *sb, float f, unsigned int flags);
+void MSG_WriteAngle16 (sizebuf_t *sb, float f, unsigned int flags); //johnfitz
 
 extern	int			msg_readcount;
 extern	qboolean	msg_badread;		// set if a read goes beyond end of message
@@ -115,9 +115,9 @@ int MSG_ReadLong (void);
 float MSG_ReadFloat (void);
 const char *MSG_ReadString (void);
 
-float MSG_ReadCoord (void);
-float MSG_ReadAngle (void);
-float MSG_ReadAngle16 (void); //johnfitz
+float MSG_ReadCoord (unsigned int flags);
+float MSG_ReadAngle (unsigned int flags);
+float MSG_ReadAngle16 (unsigned int flags); //johnfitz
 
 //============================================================================
 
@@ -141,14 +141,16 @@ float Q_atof (const char *str);
 extern int q_strcasecmp (const char * s1, const char * s2);
 extern int q_strncasecmp (const char *s1, const char *s2, size_t n);
 
+/* locale-insensitive case-insensitive alternative to strstr */
+extern char *q_strcasestr(const char *haystack, const char *needle);
+
 /* locale-insensitive strlwr/upr replacement functions: */
 extern char *q_strlwr (char *str);
 extern char *q_strupr (char *str);
 
 /* snprintf, vsnprintf : always use our versions. */
-extern int q_snprintf (char *str, size_t size, const char *format, ...) __attribute__((__format__(__printf__,3,4)));
-extern int q_vsnprintf(char *str, size_t size, const char *format, va_list args)
-									__attribute__((__format__(__printf__,3,0)));
+extern int q_snprintf (char *str, size_t size, const char *format, ...) FUNC_PRINTF(3,4);
+extern int q_vsnprintf(char *str, size_t size, const char *format, va_list args) FUNC_PRINTF(3,0);
 
 //============================================================================
 
@@ -185,7 +187,7 @@ const char *COM_FileGetExtension (const char *in); /* doesn't return NULL */
 void COM_ExtractExtension (const char *in, char *out, size_t outsize);
 void COM_CreatePath (char *path);
 
-char *va (const char *format, ...) __attribute__((__format__(__printf__,1,2)));
+char *va (const char *format, ...) FUNC_PRINTF(1,2);
 // does a varargs printf into a temp buffer
 
 
@@ -251,6 +253,24 @@ void COM_LoadCacheFile (const char *path, struct cache_user_s *cu,
 	// uses cache mem for allocating the buffer.
 byte *COM_LoadMallocFile (const char *path, unsigned int *path_id);
 	// allocates the buffer on the system mem (malloc).
+
+// Opens the given path directly, ignoring search paths.
+// Returns NULL on failure, or else a '\0'-terminated malloc'ed buffer.
+// Loads in "t" mode so CRLF to LF translation is performed on Windows.
+byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out);
+
+// Attempts to parse an int, followed by a newline.
+// Returns advanced buffer position.
+// Doesn't signal parsing failure, but this is not needed for savegame loading.
+const char *COM_ParseIntNewline(const char *buffer, int *value);
+
+// Attempts to parse a float followed by a newline.
+// Returns advanced buffer position.
+const char *COM_ParseFloatNewline(const char *buffer, float *value);
+
+// Parse a string of non-whitespace into com_token, then tries to consume a
+// newline. Returns advanced buffer position.
+const char *COM_ParseStringNewline(const char *buffer);
 
 /* The following FS_*() stdio replacements are necessary if one is
  * to perform non-sequential reads on files reopened on pak files

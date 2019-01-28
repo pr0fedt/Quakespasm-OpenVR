@@ -246,6 +246,8 @@ static void TexMgr_Imagedump_f (void)
 		q_snprintf(tganame, sizeof(tganame), "imagedump/%s.tga", tempname);
 
 		GL_Bind (glt);
+		glPixelStorei (GL_PACK_ALIGNMENT, 1);/* for widths that aren't a multiple of 4 */
+
 		if (glt->flags & TEXPREF_ALPHA)
 		{
 			buffer = (byte *) malloc(glt->width*glt->height*4);
@@ -552,15 +554,14 @@ choose safe warpimage size and resize existing warpimage textures
 */
 void TexMgr_RecalcWarpImageSize (void)
 {
-	int	mark, oldsize;
+//	int	oldsize = gl_warpimagesize;
+	int	mark;
 	gltexture_t *glt;
 	byte *dummy;
 
 	//
 	// find the new correct size
 	//
-	oldsize = gl_warpimagesize;
-
 	gl_warpimagesize = TexMgr_SafeTextureSize (512);
 
 	while (gl_warpimagesize > vid.width)

@@ -22,15 +22,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
-#include "vr_menu.h"
 
 void (*vid_menucmdfn)(void); //johnfitz
 void (*vid_menudrawfn)(void);
 void (*vid_menukeyfn)(int key);
-
-void(*vr_menucmdfn)(void);
-void(*vr_menudrawfn)(void);
-void(*vr_menukeyfn)(int key);
 
 enum m_state_e m_state;
 
@@ -48,7 +43,6 @@ void M_Menu_Main_f (void);
 	void M_Menu_Options_f (void);
 		void M_Menu_Keys_f (void);
 		void M_Menu_Video_f (void);
-		void M_Menu_VR_f(void);
 	void M_Menu_Help_f (void);
 	void M_Menu_Quit_f (void);
 
@@ -66,7 +60,6 @@ void M_Main_Draw (void);
 	void M_Options_Draw (void);
 		void M_Keys_Draw (void);
 		void M_Video_Draw (void);
-		void M_VR_Draw(void);
 	void M_Help_Draw (void);
 	void M_Quit_Draw (void);
 
@@ -84,7 +77,6 @@ void M_Main_Key (int key);
 	void M_Options_Key (int key);
 		void M_Keys_Key (int key);
 		void M_Video_Key (int key);
-		void M_VR_Key(int key);
 	void M_Help_Key (int key);
 	void M_Quit_Key (int key);
 
@@ -1001,9 +993,16 @@ enum
 //#ifdef _WIN32
 //	OPT_USEMOUSE,
 //#endif
-	OPT_VIDEO,
-	OPT_VR, 	// This is the last before OPTIONS_ITEMS
+	OPT_VIDEO,	// This is the last before OPTIONS_ITEMS
 	OPTIONS_ITEMS
+};
+
+enum
+{
+	ALWAYSRUN_OFF = 0,
+	ALWAYSRUN_VANILLA,
+	ALWAYSRUN_QUAKESPASM,
+	ALWAYSRUN_ITEMS
 };
 
 #define	SLIDER_RANGE	10
@@ -1021,6 +1020,7 @@ void M_Menu_Options_f (void)
 
 void M_AdjustSliders (int dir)
 {
+	int	curr_alwaysrun, target_alwaysrun;
 	float	f, l;
 
 	S_LocalSound ("misc/menu3.wav");
@@ -1083,17 +1083,32 @@ void M_AdjustSliders (int dir)
 		break;
 
 	case OPT_ALWAYRUN:	// always run
-		if (cl_movespeedkey.value <= 1)
-			Cvar_Set ("cl_movespeedkey", "2.0");
-		if (cl_forwardspeed.value > 200)
-		{
-			Cvar_Set ("cl_forwardspeed", "200");
-			Cvar_Set ("cl_backspeed", "200");
-		}
+		if (cl_alwaysrun.value)
+			curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
+		else if (cl_forwardspeed.value > 200)
+			curr_alwaysrun = ALWAYSRUN_VANILLA;
 		else
+			curr_alwaysrun = ALWAYSRUN_OFF;
+			
+		target_alwaysrun = (ALWAYSRUN_ITEMS + curr_alwaysrun + dir) % ALWAYSRUN_ITEMS;
+			
+		if (target_alwaysrun == ALWAYSRUN_VANILLA)
 		{
-			Cvar_SetValue ("cl_forwardspeed", 200 * cl_movespeedkey.value);
-			Cvar_SetValue ("cl_backspeed", 200 * cl_movespeedkey.value);
+			Cvar_SetValue ("cl_alwaysrun", 0);
+			Cvar_SetValue ("cl_forwardspeed", 400);
+			Cvar_SetValue ("cl_backspeed", 400);
+		}
+		else if (target_alwaysrun == ALWAYSRUN_QUAKESPASM)
+		{
+			Cvar_SetValue ("cl_alwaysrun", 1);
+			Cvar_SetValue ("cl_forwardspeed", 200);
+			Cvar_SetValue ("cl_backspeed", 200);
+		}
+		else // ALWAYSRUN_OFF
+		{
+			Cvar_SetValue ("cl_alwaysrun", 0);
+			Cvar_SetValue ("cl_forwardspeed", 200);
+			Cvar_SetValue ("cl_backspeed", 200);
 		}
 		break;
 
@@ -1212,7 +1227,12 @@ void M_Options_Draw (void)
 
 	// OPT_ALWAYRUN:
 	M_Print (16, 32 + 8*OPT_ALWAYRUN,	"            Always Run");
-	M_DrawCheckbox (220, 32 + 8*OPT_ALWAYRUN, cl_forwardspeed.value > 200);
+	if (cl_alwaysrun.value)
+		M_Print (220, 32 + 8*OPT_ALWAYRUN, "quakespasm");
+	else if (cl_forwardspeed.value > 200.0)
+		M_Print (220, 32 + 8*OPT_ALWAYRUN, "vanilla");
+	else
+		M_Print (220, 32 + 8*OPT_ALWAYRUN, "off");
 
 	// OPT_INVMOUSE:
 	M_Print (16, 32 + 8*OPT_INVMOUSE,	"          Invert Mouse");
@@ -1233,10 +1253,6 @@ void M_Options_Draw (void)
 	// OPT_VIDEO:
 	if (vid_menudrawfn)
 		M_Print (16, 32 + 8*OPT_VIDEO,	"         Video Options");
-
-	// OPT_VR:
-	if (vr_menudrawfn)
-		M_Print(16, 32 + 8*OPT_VR, "        VR/HMD Options");
 
 // cursor
 	M_DrawCharacter (200, 32 + options_cursor*8, 12+((int)(realtime*4)&1));
@@ -1275,9 +1291,6 @@ void M_Options_Key (int k)
 			break;
 		case OPT_VIDEO:
 			M_Menu_Video_f ();
-			break;
-		case OPT_VR:
-			M_Menu_VR_f();
 			break;
 		default:
 			M_AdjustSliders (1);
@@ -1540,36 +1553,6 @@ void M_Video_Key (int key)
 }
 
 //=============================================================================
-/* VR MENU */
-
-void M_Menu_VR_f(void)
-{
-	if (vr_menucmdfn)
-	{
-		(*vr_menucmdfn) ();
-	}
-}
-
-
-void M_VR_Draw(void)
-{
-	if (vr_menudrawfn)
-	{
-		(*vr_menudrawfn) ();
-	}
-}
-
-
-void M_VR_Key(int key)
-{
-	if (vr_menukeyfn)
-	{
-		(*vr_menukeyfn) (key);
-	}
-}
-
-
-//=============================================================================
 /* HELP MENU */
 
 int		help_page;
@@ -1713,7 +1696,7 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 		m_state = m_quit;
 	}
 
-	sprintf(msg1, "QuakeSpasm %1.2f.%d", (float)QUAKESPASM_VERSION, QUAKESPASM_VER_PATCH);
+	sprintf(msg1, "QuakeSpasm " QUAKESPASM_VER_STRING);
 
 	//okay, this is kind of fucked up.  M_DrawTextBox will always act as if
 	//width is even. Also, the width and lines values are for the interior of the box,
@@ -2566,7 +2549,6 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_options", M_Menu_Options_f);
 	Cmd_AddCommand ("menu_keys", M_Menu_Keys_f);
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f);
-	Cmd_AddCommand ("menu_vr", M_Menu_VR_f);
 	Cmd_AddCommand ("help", M_Menu_Help_f);
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f);
 }
@@ -2637,10 +2619,6 @@ void M_Draw (void)
 
 	case m_video:
 		M_Video_Draw ();
-		break;
-
-	case m_vr:
-		M_VR_Draw();
 		break;
 
 	case m_help:
@@ -2730,10 +2708,6 @@ void M_Keydown (int key)
 	case m_video:
 		M_Video_Key (key);
 		return;
-
-	case m_vr:
-		M_VR_Key(key);
-		break;
 
 	case m_help:
 		M_Help_Key (key);

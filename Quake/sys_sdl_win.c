@@ -158,9 +158,11 @@ static char	cwd[1024];
 
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 {
-	char		*tmp;
+	char *tmp;
+	size_t rc;
 
-	if (GetCurrentDirectory(dstsize, dst) == 0)
+	rc = GetCurrentDirectory(dstsize, dst);
+	if (rc == 0 || rc > dstsize)
 		Sys_Error ("Couldn't determine current directory");
 
 	tmp = dst;
@@ -296,6 +298,8 @@ void Sys_Error (const char *error, ...)
 	char		text[1024];
 	DWORD		dummy;
 
+	host_parms->errstate++;
+
 	va_start (argptr, error);
 	q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
@@ -318,9 +322,6 @@ void Sys_Error (const char *error, ...)
 		WriteFile (houtput, "\r\n",    2,		  &dummy, NULL);
 		SDL_Delay (3000);	/* show the console 3 more seconds */
 	}
-
-// shut down QHOST hooks if necessary
-//	DeinitConProc ();
 
 	exit (1);
 }
@@ -375,7 +376,7 @@ const char *Sys_ConsoleInput (void)
 		if (GetNumberOfConsoleInputEvents(hinput, &numevents) == 0)
 			Sys_Error ("Error getting # of console events");
 
-		if (numevents <= 0)
+		if (! numevents)
 			break;
 
 		if (ReadConsoleInput(hinput, recs, 1, &numread) == 0)

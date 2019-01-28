@@ -65,7 +65,13 @@ static char *PF_VarString (int	first)
 		}
 	}
 	if (s > 255)
-		Con_DWarning("PF_VarString: %i characters exceeds standard limit of 255.\n", (int) s);
+	{
+		if (!dev_overflows.varstring || dev_overflows.varstring + CONSOLE_RESPAM_TIME < realtime)
+		{
+			Con_DWarning("PF_VarString: %i characters exceeds standard limit of 255 (max = %d).\n", (int) s, (int)(sizeof(out) - 1));
+			dev_overflows.varstring = realtime;
+		}
+	}
 	return out;
 }
 
@@ -391,11 +397,11 @@ static void PF_normalize (void)
 {
 	float	*value1;
 	vec3_t	newvalue;
-	float	new_temp;
+	double	new_temp;
 
 	value1 = G_VECTOR(OFS_PARM0);
 
-	new_temp = value1[0] * value1[0] + value1[1] * value1[1] + value1[2]*value1[2];
+	new_temp = (double)value1[0] * value1[0] + (double)value1[1] * value1[1] + (double)value1[2]*value1[2];
 	new_temp = sqrt (new_temp);
 
 	if (new_temp == 0)
@@ -421,11 +427,11 @@ scalar vlen(vector)
 static void PF_vlen (void)
 {
 	float	*value1;
-	float	new_temp;
+	double	new_temp;
 
 	value1 = G_VECTOR(OFS_PARM0);
 
-	new_temp = value1[0] * value1[0] + value1[1] * value1[1] + value1[2]*value1[2];
+	new_temp = (double)value1[0] * value1[0] + (double)value1[1] * value1[1] + (double)value1[2]*value1[2];
 	new_temp = sqrt(new_temp);
 
 	G_FLOAT(OFS_RETURN) = new_temp;
@@ -589,7 +595,7 @@ static void PF_ambientsound (void)
 	//johnfitz
 
 	for (i = 0; i < 3; i++)
-		MSG_WriteCoord(&sv.signon, pos[i]);
+		MSG_WriteCoord(&sv.signon, pos[i], sv.protocolflags);
 
 	//johnfitz -- PROTOCOL_FITZQUAKE
 	if (large)
@@ -729,7 +735,8 @@ static void PF_checkpos (void)
 
 //============================================================================
 
-static byte	checkpvs[MAX_MAP_LEAFS/8];
+static byte	*checkpvs;	//ericw -- changed to malloc
+static int	checkpvs_capacity;
 
 static int PF_newcheckclient (int check)
 {
@@ -738,6 +745,7 @@ static int PF_newcheckclient (int check)
 	edict_t	*ent;
 	mleaf_t	*leaf;
 	vec3_t	org;
+	int	pvsbytes;
 
 // cycle to the next one
 
@@ -776,7 +784,16 @@ static int PF_newcheckclient (int check)
 	VectorAdd (ent->v.origin, ent->v.view_ofs, org);
 	leaf = Mod_PointInLeaf (org, sv.worldmodel);
 	pvs = Mod_LeafPVS (leaf, sv.worldmodel);
-	memcpy (checkpvs, pvs, (sv.worldmodel->numleafs+7)>>3 );
+	
+	pvsbytes = (sv.worldmodel->numleafs+7)>>3;
+	if (checkpvs == NULL || pvsbytes > checkpvs_capacity)
+	{
+		checkpvs_capacity = pvsbytes;
+		checkpvs = (byte *) realloc (checkpvs, checkpvs_capacity);
+		if (!checkpvs)
+			Sys_Error ("PF_newcheckclient: realloc() failed on %d bytes", checkpvs_capacity);
+	}
+	memcpy (checkpvs, pvs, pvsbytes);
 
 	return i;
 }
@@ -1222,6 +1239,13 @@ static void PF_lightstyle (void)
 	style = G_FLOAT(OFS_PARM0);
 	val = G_STRING(OFS_PARM1);
 
+// bounds check to avoid clobbering sv struct
+	if (style < 0 || style >= MAX_LIGHTSTYLES)
+	{
+		Con_DWarning("PF_lightstyle: invalid style %d\n", style);
+		return;
+	}
+
 // change the string in sv
 	sv.lightstyles[style] = val;
 
@@ -1506,12 +1530,12 @@ static void PF_WriteLong (void)
 
 static void PF_WriteAngle (void)
 {
-	MSG_WriteAngle (WriteDest(), G_FLOAT(OFS_PARM1));
+	MSG_WriteAngle (WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
 }
 
 static void PF_WriteCoord (void)
 {
-	MSG_WriteCoord (WriteDest(), G_FLOAT(OFS_PARM1));
+	MSG_WriteCoord (WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
 }
 
 static void PF_WriteString (void)
@@ -1583,8 +1607,8 @@ static void PF_makestatic (void)
 	MSG_WriteByte (&sv.signon, ent->v.skin);
 	for (i = 0; i < 3; i++)
 	{
-		MSG_WriteCoord(&sv.signon, ent->v.origin[i]);
-		MSG_WriteAngle(&sv.signon, ent->v.angles[i]);
+		MSG_WriteCoord(&sv.signon, ent->v.origin[i], sv.protocolflags);
+		MSG_WriteAngle(&sv.signon, ent->v.angles[i], sv.protocolflags);
 	}
 
 	//johnfitz -- PROTOCOL_FITZQUAKE

@@ -11,7 +11,7 @@
 <PRE>
 </PRE>
 </P>
-<P><EM>Page last edited: January 2016</EM></P>
+<P><EM>Page last edited: Feb. 2018</EM></P>
 
 <P>
 <H2><A NAME="toc1">1.</A> <A HREF="Quakespasm.html#s1">About </A></H2>
@@ -24,6 +24,7 @@
 
 <UL>
 <LI><A NAME="toc3.1">3.1</A> <A HREF="Quakespasm.html#ss3.1">Music Playback</A>
+<LI><A NAME="toc3.2">3.2</A> <A HREF="Quakespasm.html#ss3.2">Controller Support</A>
 </UL>
 <P>
 <H2><A NAME="toc4">4.</A> <A HREF="Quakespasm.html#s4">Compiling and Installation</A></H2>
@@ -40,19 +41,22 @@
 <H2><A NAME="toc6">6.</A> <A HREF="Quakespasm.html#s6">Changes</A></H2>
 
 <UL>
-<LI><A NAME="toc6.1">6.1</A> <A HREF="Quakespasm.html#ss6.1">Changes in 0.91.1</A>
-<LI><A NAME="toc6.2">6.2</A> <A HREF="Quakespasm.html#ss6.2">Changes in 0.91.0</A>
-<LI><A NAME="toc6.3">6.3</A> <A HREF="Quakespasm.html#ss6.3">Changes in 0.90.1</A>
-<LI><A NAME="toc6.4">6.4</A> <A HREF="Quakespasm.html#ss6.4">Changes in 0.90.0</A>
-<LI><A NAME="toc6.5">6.5</A> <A HREF="Quakespasm.html#ss6.5">Changes in 0.85.9</A>
-<LI><A NAME="toc6.6">6.6</A> <A HREF="Quakespasm.html#ss6.6">Changes in 0.85.8</A>
-<LI><A NAME="toc6.7">6.7</A> <A HREF="Quakespasm.html#ss6.7">Changes in 0.85.7</A>
-<LI><A NAME="toc6.8">6.8</A> <A HREF="Quakespasm.html#ss6.8">Changes in 0.85.6</A>
-<LI><A NAME="toc6.9">6.9</A> <A HREF="Quakespasm.html#ss6.9">Changes in 0.85.5</A>
-<LI><A NAME="toc6.10">6.10</A> <A HREF="Quakespasm.html#ss6.10">Changes in 0.85.4</A>
-<LI><A NAME="toc6.11">6.11</A> <A HREF="Quakespasm.html#ss6.11">Changes in 0.85.3</A>
-<LI><A NAME="toc6.12">6.12</A> <A HREF="Quakespasm.html#ss6.12">Changes in 0.85.2</A>
-<LI><A NAME="toc6.13">6.13</A> <A HREF="Quakespasm.html#ss6.13">Changes in 0.85.1</A>
+<LI><A NAME="toc6.1">6.1</A> <A HREF="Quakespasm.html#ss6.1">Changes in 0.93.1</A>
+<LI><A NAME="toc6.2">6.2</A> <A HREF="Quakespasm.html#ss6.2">Changes in 0.93.0</A>
+<LI><A NAME="toc6.3">6.3</A> <A HREF="Quakespasm.html#ss6.3">Changes in 0.92.1</A>
+<LI><A NAME="toc6.4">6.4</A> <A HREF="Quakespasm.html#ss6.4">Changes in 0.92.0</A>
+<LI><A NAME="toc6.5">6.5</A> <A HREF="Quakespasm.html#ss6.5">Changes in 0.91.0</A>
+<LI><A NAME="toc6.6">6.6</A> <A HREF="Quakespasm.html#ss6.6">Changes in 0.90.1</A>
+<LI><A NAME="toc6.7">6.7</A> <A HREF="Quakespasm.html#ss6.7">Changes in 0.90.0</A>
+<LI><A NAME="toc6.8">6.8</A> <A HREF="Quakespasm.html#ss6.8">Changes in 0.85.9</A>
+<LI><A NAME="toc6.9">6.9</A> <A HREF="Quakespasm.html#ss6.9">Changes in 0.85.8</A>
+<LI><A NAME="toc6.10">6.10</A> <A HREF="Quakespasm.html#ss6.10">Changes in 0.85.7</A>
+<LI><A NAME="toc6.11">6.11</A> <A HREF="Quakespasm.html#ss6.11">Changes in 0.85.6</A>
+<LI><A NAME="toc6.12">6.12</A> <A HREF="Quakespasm.html#ss6.12">Changes in 0.85.5</A>
+<LI><A NAME="toc6.13">6.13</A> <A HREF="Quakespasm.html#ss6.13">Changes in 0.85.4</A>
+<LI><A NAME="toc6.14">6.14</A> <A HREF="Quakespasm.html#ss6.14">Changes in 0.85.3</A>
+<LI><A NAME="toc6.15">6.15</A> <A HREF="Quakespasm.html#ss6.15">Changes in 0.85.2</A>
+<LI><A NAME="toc6.16">6.16</A> <A HREF="Quakespasm.html#ss6.16">Changes in 0.85.1</A>
 </UL>
 <P>
 <H2><A NAME="toc7">7.</A> <A HREF="Quakespasm.html#s7">Todo </A></H2>
@@ -73,10 +77,12 @@
 
 <P>
 <A HREF="http://quakespasm.sourceforge.net">QuakeSpasm</A>
-is a Quake 1 engine based on the SDL port of
+is a modern, cross-platform Quake 1 engine based on 
 <A HREF="http://www.celephais.net/fitzquake">FitzQuake</A>.</P>
-<P>It includes support for 64 bit CPUs and custom music playback, and includes a new
+<P>It includes support for 64 bit CPUs and custom music playback, a new
 sound driver, some graphical niceities, and numerous bug-fixes and other improvements.</P>
+<P>Quakespasm utilizes either the SDL or SDL2 frameworks, so choose which one works best for you.
+SDL is probably less buggy, but SDL2 has nicer features and smoother mouse input - though no CD support.</P>
 
 <H2><A NAME="s2">2.</A> <A HREF="#toc2">Downloads </A></H2>
 
@@ -102,7 +108,7 @@ sound driver, some graphical niceities, and numerous bug-fixes and other improve
 </LI>
 <LI>Quakespasm's custom data is stored in "quakespasm.pak". Install this file alongside your id1 directory to enable the custom console background and other minor features.
 </LI>
-<LI>For different sound drivers use "<B>SDL_AUDIODRIVER=</B><EM>DRIVER</EM><B> ./quakespasm</B>"
+<LI>For different sound backend drivers use "<B>SDL_AUDIODRIVER=</B><EM>DRIVER</EM><B> ./quakespasm</B>"
 , where DRIVER may be alsa, dsp, pulse, esd ...
 </LI>
 <LI><B>Shift+Escape</B> draws the Console.</LI>
@@ -130,6 +136,57 @@ sound driver, some graphical niceities, and numerous bug-fixes and other improve
 </UL>
 </P>
 
+<H2><A NAME="ss3.2">3.2</A> <A HREF="#toc3.2">Controller Support</A>
+</H2>
+
+<P>The SDL2 variant of Quakespasm supports Xbox 360 style game controllers.</P>
+<P>The default configuration uses the left analog stick for movement and the right for looking.</P>
+<P>If your controller doesn't work you can try placing 
+<A HREF="https://raw.githubusercontent.com/gabomdq/SDL_GameControllerDB/master/gamecontrollerdb.txt">this file</A> in your Quake directory, it is a community-maintained database that adds support for more controllers to SDL2.</P>
+
+<H3>Cvars</H3>
+
+<P>
+<UL>
+<LI>joy_deadzone - Fraction of the stick travel to be deadzone, between 0 and 1. Default 0.175.</LI>
+<LI>joy_deadzone_trigger - Fraction of trigger range required to register a button press on the analog triggers, between 0 and 1. Default 0.2.</LI>
+<LI>joy_sensitivity_yaw/pitch - Max angular speed in degrees/second when looking. Defaults are 300 for yaw (turning left/right) and 150 for pitch (up/down).</LI>
+<LI>joy_exponent - For the look stick, the stick displacement (between 0 and 1) is raised to this power. Default is 3. A value of 1 would give a linear relationship between stick displacement and fraction of the maximum angular speed.</LI>
+<LI>joy_invert - Set to 1 to invert the vertical axis of the look stick.</LI>
+<LI>joy_swapmovelook - Set to 1 to swap the left and right analog stick functions. Default 0, move on the left stick, look on the right stick.</LI>
+<LI>joy_enable - Set to 0 to disable controller support. Default 1.</LI>
+</UL>
+</P>
+
+<H3>Buttons</H3>
+
+<P>Some of the controller buttons are hardcoded to allow navigating the menu:</P>
+<P>
+<UL>
+<LI>Back - alias for TAB</LI>
+<LI>Start - alias for ESC</LI>
+<LI>DPad, analog sticks - mapped to arrow keys</LI>
+<LI>A Button - alias for ENTER in menus</LI>
+<LI>B Button - alias for ESC in menus</LI>
+</UL>
+</P>
+<P>These buttons can be bound normally:</P>
+<P>
+<UL>
+<LI>LTRIGGER - Left trigger</LI>
+<LI>RTRIGGER - Right trigger</LI>
+<LI>LSHOULDER - Left shoulder button</LI>
+<LI>RSHOULDER - Right shoulder button</LI>
+<LI>LTHUMB - Clicking the left thumbstick</LI>
+<LI>RTHUMB - Clicking the right thumbstick</LI>
+<LI>ABUTTON</LI>
+<LI>BBUTTON</LI>
+<LI>XBUTTON</LI>
+<LI>YBUTTON</LI>
+</UL>
+
+quakespasm.pak contains a default.cfg which has been updated to give some default bindings. L/R shoulder buttons are bound to weapon switching, and L/R triggers are jump and attack.</P>
+<P>The controller support started as Jeremiah Sypult's implementation in Quakespasm-Rift and also uses ideas and code from LordHavoc (DarkPlaces).</P>
 
 <H2><A NAME="s4">4.</A> <A HREF="#toc4">Compiling and Installation</A></H2>
 
@@ -179,21 +236,103 @@ Try setting "export SDL_VIDEO_X11_NODIRECTCOLOR=1", or if you have Xorg >= 7.5 a
 these patched libSDL binaries may help.
 <UL>
 <LI>
-<A HREF="http://sourceforge.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched.tgz/download">Gamma patched libSDL (i686-linux)</A></LI>
+<A HREF="http://sf.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched.tgz/download">Gamma patched libSDL (i686-linux)</A></LI>
 <LI>
-<A HREF="http://sourceforge.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched-AMD64.tgz/download">Gamma patched libSDL (x86_64-linux)</A></LI>
+<A HREF="http://sf.net/projects/quakespasm/files/Support%20Files/libSDL_gamma_patched-AMD64.tgz/download">Gamma patched libSDL (x86_64-linux)</A></LI>
 </UL>
 </P>
-<P>The "game" command doesn't execute quake.rc in the new game directory being switched to. This means any custom key bindings in a mod's config.cfg or special settings in a quake.rc won't be loaded. The only workaround is launching the engine with the -game command-line switch instead of using the game console command. Or, after running the game command, you can run "exec quake.rc" by yourself (YMMV).</P>
 <H2><A NAME="s6">6.</A> <A HREF="#toc6">Changes</A></H2>
 
 
 
-<H2><A NAME="ss6.1">6.1</A> <A HREF="#toc6.1">Changes in 0.91.1</A>
+<H2><A NAME="ss6.1">6.1</A> <A HREF="#toc6.1">Changes in 0.93.1</A>
 </H2>
 
+<P>
+<UL>
+<LI> Fixed a fog regression which was introduced in 0.93.0.</LI>
+<LI> Fixed a crash (buffer overflow) with invalid vis data.</LI>
+<LI> Fixed buttons crushing players in 64-bit builds.</LI>
+<LI> Change controller movement to use cubic easing by default; added "joy_exponent_move" cvar.</LI>
+<LI> config.cfg is no longer written in case of a Sys_Error.</LI>
+<LI> Fixed Opus encoded cd tracks not being recognized as ripped tracks.</LI>
+<LI> Update the third-party libraries. Other fixes/cleanups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.2">6.2</A> <A HREF="#toc6.2">Changes in 0.93.0</A>
+</H2>
 
-<H2><A NAME="ss6.2">6.2</A> <A HREF="#toc6.2">Changes in 0.91.0</A>
+<P>
+<UL>
+<LI> Raise default "joy_deadzone_trigger" cvar to 0.2.</LI>
+<LI> Raise console buffer size to 1MB.</LI>
+<LI> Raise MAX_STATIC_ENTITIES from 512 to 4096.</LI>
+<LI> Raise MAX_STACK_DEPTH from 32 to 64.</LI>
+<LI> Raise command buffer size from 8K to 256K to support large configs.</LI>
+<LI> Remove MAX_EFRAGS and MAX_MAP_LEAFS limits.</LI>
+<LI> Remove "Loadgame buffer overflow" limit, which could happen when loading DP or QSS saves.</LI>
+<LI> Adjust "exceeds standard limit of" debug warnings to include the actual QS limit.</LI>
+<LI> Change "game" command to now exec quake.rc.</LI>
+<LI> Change "games" / "mods" commands to list all subdirectories.</LI>
+<LI> Restore vid_refreshrate from fitzquake-0.85 for SDL2 builds.</LI>
+<LI> Alpha-masked model support. (MF_HOLEY: 0x4000).</LI>
+<LI> Invalid skin index now draws skin 0 (WinQuake behaviour) instead of blue checkerboard.</LI>
+<LI> Change default screenshot format to png. The 'screenshot' command now supports optional format (tga, png or jpg) and quality (1-100) arguments.</LI>
+<LI> Revert "always run" changes from 0.85.9 and move the QuakeSpasm customizations to a new "cl_alwaysrun" cvar: Set to 1 in order to scale forward/side/up speed by "cl_movespeedkey" (usually 2), and to make "speedkey" act as "slowkey".</LI>
+<LI> Change the "always run" menu option to offer three choices:
+<UL>
+<LI> off        (cl_alwaysrun 0, cl_forwardspeed 200, cl_backspeed 200)</LI>
+<LI> vanilla    (cl_alwaysrun 0, cl_forwardspeed 400, cl_backspeed 400)</LI>
+<LI> quakespasm (cl_alwaysrun 1, cl_forwardspeed 200, cl_backspeed 200)</LI>
+</UL>
+</LI>
+<LI> New "r_scale" cvar. Set to 2, 3, or 4 to render the view at 1/2, 1/3, or 1/4 resolution.</LI>
+<LI> New "r_viewmodel_quake" cvar. Set to 1 for WinQuake gun position (from MarkV).</LI>
+<LI> New "find" / "apropos" command, searches for commands/cvar names for the given substring (from Spike).</LI>
+<LI> New "randmap" command for loading a random map.</LI>
+<LI> New "gl_cshiftpercent_contents", "gl_cshiftpercent_damage", "gl_cshiftpercent_bonus", "gl_cshiftpercent_powerup" cvars for tuning the strength of specic view blends.</LI>
+<LI> GL2 renderer: use a GLSL shader for world faces. Fixes reports of integrated+discrete GPU laptops having inconsistent fog rendering.</LI>
+<LI> Fix macOS startup delay (avoid calling gethostbyname() for ".local" hostnames).</LI>
+<LI> Fix memory corruption in PF_lightstyle with out of bounds lightstyles.</LI>
+<LI> Fix crash in BoundPoly with polygons extending beyond +/-9999.</LI>
+<LI> Fix QS window to stay on the current monitor when changing video modes (SDL2 only).</LI>
+<LI> Fix possible freeze in SV_TouchLinks regardless of what QC does in the touch function.</LI>
+<LI> Fix for maps with empty strings for vector keys (e.g. "origin"); don't read uninitialized memory.</LI>
+<LI> Support for Open Watcom compiler.</LI>
+<LI> Update the third-party libraries.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.3">6.3</A> <A HREF="#toc6.3">Changes in 0.92.1</A>
+</H2>
+
+<P>
+<UL>
+<LI> Fixed large menu scale factors (was broken in 0.92.0).</LI>
+<LI> Fixed PAUSE key (was broken in 0.92.0).</LI>
+<LI> Updated some of the third-party libraries.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.4">6.4</A> <A HREF="#toc6.4">Changes in 0.92.0</A>
+</H2>
+
+<P>
+<UL>
+<LI> SDL2 Game Controller support.</LI>
+<LI> Contrast support with new "contrast" cvar, behaving the same as MarkV. It may be a useful alternative to the existing gamma control for laptops in a bright environment, etc. Raising contrast gives less of a gray/washed out look than raising gamma, but at a disadvantage: colors near white get clipped to white.</LI>
+<LI> RMQ protocol (999) support, adapted from RMQEngine.</LI>
+<LI> New "-protocol x" command line option. Accepted values for 'x' are 15 (NetQuake), 666 (FitzQuake, default), and 999 (RMQ).</LI>
+<LI> New "setpos" console command.</LI>
+<LI> New "vid_borderless" cvar for getting a borderless window.</LI>
+<LI> Increased MAX_MAP_LEAFS from 65535 to 70000 and MAX_LIGHTMAPS from 256 to 512 in order to handle the oms3 map pack.</LI>
+<LI> Server edicts are now allocated using malloc instead of allocating on the hunk.</LI>
+<LI> gl_clear now defaults to 1.</LI>
+<LI> Fix items falling out of the world on oms3.bsp on SSE builds.</LI>
+<LI> Worked around an OSX 10.6 driver bug when using FSAA, which was leading to an unplayable HOM effect on the rest of the screen.</LI>
+<LI> Fix wrong trace endpoint from the tracepos console command.</LI>
+<LI> Updated some of the third-party libraries. Other fixes/clean-ups.</LI>
+</UL>
+</P>
+<H2><A NAME="ss6.5">6.5</A> <A HREF="#toc6.5">Changes in 0.91.0</A>
 </H2>
 
 
@@ -253,7 +392,7 @@ these patched libSDL binaries may help.
 <LI> Raised MAX_SFX to 1024 (was 512).</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.3">6.3</A> <A HREF="#toc6.3">Changes in 0.90.1</A>
+<H2><A NAME="ss6.6">6.6</A> <A HREF="#toc6.6">Changes in 0.90.1</A>
 </H2>
 
 
@@ -313,7 +452,7 @@ these patched libSDL binaries may help.
 <LI> Update 3rd-party libraries.</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.4">6.4</A> <A HREF="#toc6.4">Changes in 0.90.0</A>
+<H2><A NAME="ss6.7">6.7</A> <A HREF="#toc6.7">Changes in 0.90.0</A>
 </H2>
 
 <P>
@@ -358,7 +497,7 @@ these patched libSDL binaries may help.
 <LI> Other fixes and clean-ups.</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.5">6.5</A> <A HREF="#toc6.5">Changes in 0.85.9</A>
+<H2><A NAME="ss6.8">6.8</A> <A HREF="#toc6.8">Changes in 0.85.9</A>
 </H2>
 
 <P>
@@ -382,7 +521,7 @@ these patched libSDL binaries may help.
 <LI> Several other minor fixes/cleanups.</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.6">6.6</A> <A HREF="#toc6.6">Changes in 0.85.8</A>
+<H2><A NAME="ss6.9">6.9</A> <A HREF="#toc6.9">Changes in 0.85.8</A>
 </H2>
 
 <P>
@@ -407,7 +546,7 @@ these patched libSDL binaries may help.
 <LI> Miscellaneous source code cleanups.</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.7">6.7</A> <A HREF="#toc6.7">Changes in 0.85.7</A>
+<H2><A NAME="ss6.10">6.10</A> <A HREF="#toc6.10">Changes in 0.85.7</A>
 </H2>
 
 <P>
@@ -425,7 +564,7 @@ these patched libSDL binaries may help.
 <LI> Several other small changes mostly invisible to the end-user</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.8">6.8</A> <A HREF="#toc6.8">Changes in 0.85.6</A>
+<H2><A NAME="ss6.11">6.11</A> <A HREF="#toc6.11">Changes in 0.85.6</A>
 </H2>
 
 <P>
@@ -436,7 +575,7 @@ these patched libSDL binaries may help.
 <LI> Minor SDL video fixes.</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.9">6.9</A> <A HREF="#toc6.9">Changes in 0.85.5</A>
+<H2><A NAME="ss6.12">6.12</A> <A HREF="#toc6.12">Changes in 0.85.5</A>
 </H2>
 
 <P>
@@ -455,7 +594,7 @@ these patched libSDL binaries may help.
 <LI> Several code updates from uHexen2 project, several code cleanups.</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.10">6.10</A> <A HREF="#toc6.10">Changes in 0.85.4</A>
+<H2><A NAME="ss6.13">6.13</A> <A HREF="#toc6.13">Changes in 0.85.4</A>
 </H2>
 
 <P>
@@ -473,7 +612,7 @@ these patched libSDL binaries may help.
 <LI> Other minor sound and cdaudio updates</LI>
 </UL>
 </P>
-<H2><A NAME="ss6.11">6.11</A> <A HREF="#toc6.11">Changes in 0.85.3</A>
+<H2><A NAME="ss6.14">6.14</A> <A HREF="#toc6.14">Changes in 0.85.3</A>
 </H2>
 
 <P>
@@ -496,7 +635,7 @@ these patched libSDL binaries may help.
 </UL>
 </P>
 
-<H2><A NAME="ss6.12">6.12</A> <A HREF="#toc6.12">Changes in 0.85.2</A>
+<H2><A NAME="ss6.15">6.15</A> <A HREF="#toc6.15">Changes in 0.85.2</A>
 </H2>
 
 <P>
@@ -515,7 +654,7 @@ these patched libSDL binaries may help.
 </UL>
 </P>
 
-<H2><A NAME="ss6.13">6.13</A> <A HREF="#toc6.13">Changes in 0.85.1</A>
+<H2><A NAME="ss6.16">6.16</A> <A HREF="#toc6.16">Changes in 0.85.1</A>
 </H2>
 
 <P>
@@ -569,7 +708,7 @@ these patched libSDL binaries may help.
 <LI>
 <A HREF="http://sourceforge.net/p/quakespasm/bugs/?source=navbar">Bug reports</A></LI>
 <LI>
-<A HREF="mailto:gmail - dot - com - username - sezeroz">Ozkan</A> (project leader),  
+<A HREF="mailto:gmail - dot - com - username - sezeroz">Ozkan</A>,  
 <A HREF="mailto:gmail - dot - com - username - ewasylishen">Eric</A>,  
 <A HREF="mailto:gmail - dot - com - username - a.h.vandijk">Sander</A>,  
 <A HREF="mailto:yahoo - dot - com - username - stevenaaus">Stevenaaus</A></LI>

@@ -154,7 +154,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define K_LTRIGGER		251
 #define K_RTRIGGER		252
 
-#define	MAX_KEYS		253
+#define	MAX_KEYS		256
 
 #define	MAXCMDLINE	256
 
@@ -163,7 +163,9 @@ typedef enum {key_game, key_console, key_message, key_menu} keydest_t;
 extern keydest_t	key_dest;
 extern	char	*keybindings[MAX_KEYS];
 
-extern	char	key_lines[32][MAXCMDLINE];
+#define		CMDLINES 64
+
+extern	char	key_lines[CMDLINES][MAXCMDLINE];
 extern	int		edit_line;
 extern	int		key_linepos;
 extern	int		key_insert;

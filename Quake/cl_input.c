@@ -232,6 +232,7 @@ cvar_t	cl_pitchspeed = {"cl_pitchspeed","150",CVAR_NONE};
 
 cvar_t	cl_anglespeedkey = {"cl_anglespeedkey","1.5",CVAR_NONE};
 
+cvar_t	cl_alwaysrun = {"cl_alwaysrun","0",CVAR_ARCHIVE}; // QuakeSpasm -- new always run
 
 /*
 ================
@@ -245,44 +246,44 @@ void CL_AdjustAngles (void)
 	float	speed;
 	float	up, down;
 
-	if ((cl_forwardspeed.value > 200) ^ (in_speed.state & 1))
+	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 		speed = host_frametime * cl_anglespeedkey.value;
 	else
 		speed = host_frametime;
 
 	if (!(in_strafe.state & 1))
 	{
-		cl.aimangles[YAW] -= speed*cl_yawspeed.value*CL_KeyState(&in_right);
-		cl.aimangles[YAW] += speed*cl_yawspeed.value*CL_KeyState(&in_left);
-		cl.aimangles[YAW] = anglemod(cl.aimangles[YAW]);
+		cl.viewangles[YAW] -= speed*cl_yawspeed.value*CL_KeyState (&in_right);
+		cl.viewangles[YAW] += speed*cl_yawspeed.value*CL_KeyState (&in_left);
+		cl.viewangles[YAW] = anglemod(cl.viewangles[YAW]);
 	}
 	if (in_klook.state & 1)
 	{
 		V_StopPitchDrift ();
-		cl.aimangles[PITCH] -= speed*cl_pitchspeed.value * CL_KeyState(&in_forward);
-		cl.aimangles[PITCH] += speed*cl_pitchspeed.value * CL_KeyState(&in_back);
+		cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * CL_KeyState (&in_forward);
+		cl.viewangles[PITCH] += speed*cl_pitchspeed.value * CL_KeyState (&in_back);
 	}
 
 	up = CL_KeyState (&in_lookup);
 	down = CL_KeyState(&in_lookdown);
 
-	cl.aimangles[PITCH] -= speed*cl_pitchspeed.value * up;
-	cl.aimangles[PITCH] += speed*cl_pitchspeed.value * down;
+	cl.viewangles[PITCH] -= speed*cl_pitchspeed.value * up;
+	cl.viewangles[PITCH] += speed*cl_pitchspeed.value * down;
 
 	if (up || down)
 		V_StopPitchDrift ();
 
 	//johnfitz -- variable pitch clamping
-	if (cl.aimangles[PITCH] > cl_maxpitch.value)
-		cl.aimangles[PITCH] = cl_maxpitch.value;
-	if (cl.aimangles[PITCH] < cl_minpitch.value)
-		cl.aimangles[PITCH] = cl_minpitch.value;
+	if (cl.viewangles[PITCH] > cl_maxpitch.value)
+		cl.viewangles[PITCH] = cl_maxpitch.value;
+	if (cl.viewangles[PITCH] < cl_minpitch.value)
+		cl.viewangles[PITCH] = cl_minpitch.value;
 	//johnfitz
 
-	if (cl.aimangles[ROLL] > 50)
-		cl.aimangles[ROLL] = 50;
-	if (cl.aimangles[ROLL] < -50)
-		cl.aimangles[ROLL] = -50;
+	if (cl.viewangles[ROLL] > 50)
+		cl.viewangles[ROLL] = 50;
+	if (cl.viewangles[ROLL] < -50)
+		cl.viewangles[ROLL] = -50;
 }
 
 /*
@@ -322,9 +323,7 @@ void CL_BaseMove (usercmd_t *cmd)
 //
 // adjust for speed key
 //
-	if (cl_forwardspeed.value > 200 && cl_movespeedkey.value)
-		cmd->forwardmove /= cl_movespeedkey.value;
-	if ((cl_forwardspeed.value > 200) ^ (in_speed.state & 1))
+	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 	{
 		cmd->forwardmove *= cl_movespeedkey.value;
 		cmd->sidemove *= cl_movespeedkey.value;
@@ -361,9 +360,9 @@ void CL_SendMove (const usercmd_t *cmd)
 	for (i=0 ; i<3 ; i++)
 		//johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
 		if (cl.protocol == PROTOCOL_NETQUAKE)
-			MSG_WriteAngle (&buf, cl.aimangles[i]);
+			MSG_WriteAngle (&buf, cl.viewangles[i], cl.protocolflags);
 		else
-			MSG_WriteAngle16 (&buf, cl.aimangles[i]);
+			MSG_WriteAngle16 (&buf, cl.viewangles[i], cl.protocolflags);
 		//johnfitz
 
 	MSG_WriteShort (&buf, cmd->forwardmove);

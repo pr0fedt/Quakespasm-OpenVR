@@ -108,6 +108,8 @@ int main(int argc, char *argv[])
 	parms.argc = argc;
 	parms.argv = argv;
 
+	parms.errstate = 0;
+
 	COM_InitArgv(parms.argc, parms.argv);
 
 	isDedicated = (COM_CheckParm("-dedicated") != 0);
@@ -133,8 +135,7 @@ int main(int argc, char *argv[])
 	Sys_Printf("GLQuake %1.2f (c) id Software\n", GLQUAKE_VERSION);
 	Sys_Printf("FitzQuake %1.2f (c) John Fitzgibbons\n", FITZQUAKE_VERSION);
 	Sys_Printf("FitzQuake SDL port (c) SleepwalkR, Baker\n");
-	Sys_Printf("QuakeSpasm %1.2f.%d (c) Ozkan Sezer, Eric Wasylishen & others\n",
-					QUAKESPASM_VERSION, QUAKESPASM_VER_PATCH);
+	Sys_Printf("QuakeSpasm " QUAKESPASM_VER_STRING " (c) Ozkan Sezer, Eric Wasylishen & others\n");
 
 	Sys_Printf("Host_Init\n");
 	Host_Init();
@@ -181,7 +182,7 @@ int main(int argc, char *argv[])
 
 		Host_Frame (time);
 
-		if (time < sys_throttle.value)
+		if (time < sys_throttle.value && !cls.timedemo)
 			SDL_Delay(1);
 
 		oldtime = newtime;

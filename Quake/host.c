@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
-#include "vr.h"
 #include <setjmp.h>
 
 /*
@@ -87,8 +86,6 @@ cvar_t devstats = {"devstats","0",CVAR_NONE}; //johnfitz -- track developer stat
 devstats_t dev_stats, dev_peakstats;
 overflowtimes_t dev_overflows; //this stores the last time overflow messages were displayed, not the last time overflows occured
 
-extern cvar_t vr_enabled;
-
 /*
 ================
 Max_Edicts_f -- johnfitz
@@ -99,6 +96,17 @@ static void Max_Edicts_f (cvar_t *var)
 	//TODO: clamp it here?
 	if (cls.state == ca_connected || sv.active)
 		Con_Printf ("Changes to max_edicts will not take effect until the next time a map is loaded.\n");
+}
+
+/*
+================
+Max_Fps_f -- ericw
+================
+*/
+static void Max_Fps_f (cvar_t *var)
+{
+	if (var->value > 72)
+		Con_Warning ("host_maxfps above 72 breaks physics.\n");
 }
 
 /*
@@ -223,7 +231,7 @@ void	Host_FindMaxClients (void)
 void Host_Version_f (void)
 {
 	Con_Printf ("Quake Version %1.2f\n", VERSION);
-	Con_Printf ("QuakeSpasm Version %1.2f.%d\n", QUAKESPASM_VERSION, QUAKESPASM_VER_PATCH);
+	Con_Printf ("QuakeSpasm Version " QUAKESPASM_VER_STRING "\n");
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ "\n");
 }
 
@@ -248,6 +256,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&host_framerate);
 	Cvar_RegisterVariable (&host_speeds);
 	Cvar_RegisterVariable (&host_maxfps); //johnfitz
+	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Cvar_RegisterVariable (&host_timescale); //johnfitz
 
 	Cvar_RegisterVariable (&max_edicts); //johnfitz
@@ -293,7 +302,7 @@ void Host_WriteConfiguration (void)
 
 // dedicated servers initialize the host but don't parse and set the
 // config.cfg cvars
-	if (host_initialized & !isDedicated)
+	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
 		f = fopen (va("%s/config.cfg", com_gamedir), "w");
 		if (!f)
@@ -302,7 +311,7 @@ void Host_WriteConfiguration (void)
 			return;
 		}
 
-		VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
+		//VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
 
 		Key_WriteBindings (f);
 		Cvar_WriteVariables (f);
@@ -313,23 +322,6 @@ void Host_WriteConfiguration (void)
 		//johnfitz
 
 		fclose (f);
-
-//johnfitz -- also save fitzquake.rc
-#if 0
-		f = fopen (va("%s/fitzquake.rc", GAMENAME), "w"); //always save in id1
-		if (!f)
-		{
-			Con_Printf ("Couldn't write fitzquake.rc.\n");
-			return;
-		}
-
-		Cvar_WriteVariables (f);
-		fprintf (f, "vid_restart\n");
-		if (in_mlook.state & 1) fprintf (f, "+mlook\n");
-
-		fclose (f);
-#endif
-//johnfitz
 	}
 }
 
@@ -552,7 +544,7 @@ void Host_ClearMemory (void)
 /* host_hunklevel MUST be set at this point */
 	Hunk_FreeToLowMark (host_hunklevel);
 	cls.signon = 0;
-	if (sv.edicts) free(sv.edicts);	// ericw -- sv.edicts switched to use malloc()
+	free(sv.edicts); // ericw -- sv.edicts switched to use malloc()
 	memset (&sv, 0, sizeof(sv));
 	memset (&cl, 0, sizeof(cl));
 }
@@ -579,7 +571,7 @@ qboolean Host_FilterTime (float time)
 
 	//johnfitz -- max fps cvar
 	maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
-	if (!cls.timedemo && realtime - oldrealtime < 1.0/maxfps && !vr_enabled.value)
+	if (!cls.timedemo && realtime - oldrealtime < 1.0/maxfps)
 		return false; // framerate is too high
 	//johnfitz
 
@@ -658,7 +650,7 @@ void Host_ServerFrame (void)
 				active++;
 		}
 		if (active > 600 && dev_peakstats.edicts <= 600)
-			Con_DWarning ("%i edicts exceeds standard limit of 600.\n", active);
+			Con_DWarning ("%i edicts exceeds standard limit of 600 (max = %d).\n", active, sv.max_edicts);
 		dev_stats.edicts = active;
 		dev_peakstats.edicts = q_max(active, dev_peakstats.edicts);
 	}
@@ -935,7 +927,6 @@ void Host_Shutdown(void)
 		CDAudio_Shutdown ();
 		S_Shutdown ();
 		IN_Shutdown ();
-		VR_Shutdown();
 		VID_Shutdown();
 	}
 

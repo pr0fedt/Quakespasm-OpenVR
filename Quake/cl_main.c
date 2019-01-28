@@ -51,7 +51,6 @@ cvar_t	cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; //johnfitz -- variabl
 client_static_t	cls;
 client_state_t	cl;
 // FIXME: put these on hunk?
-efrag_t			cl_efrags[MAX_EFRAGS];
 entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
 lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t		cl_dlights[MAX_DLIGHTS];
@@ -72,8 +71,6 @@ CL_ClearState
 */
 void CL_ClearState (void)
 {
-	int			i;
-
 	if (!sv.active)
 		Host_ClearMemory ();
 
@@ -83,7 +80,6 @@ void CL_ClearState (void)
 	SZ_Clear (&cls.message);
 
 // clear other arrays
-	memset (cl_efrags, 0, sizeof(cl_efrags));
 	memset (cl_dlights, 0, sizeof(cl_dlights));
 	memset (cl_lightstyle, 0, sizeof(cl_lightstyle));
 	memset (cl_temp_entities, 0, sizeof(cl_temp_entities));
@@ -93,14 +89,6 @@ void CL_ClearState (void)
 	cl_max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
 	cl_entities = (entity_t *) Hunk_AllocName (cl_max_edicts*sizeof(entity_t), "cl_entities");
 	//johnfitz
-
-//
-// allocate the efrags and chain together into a free list
-//
-	cl.free_efrags = cl_efrags;
-	for (i=0 ; i<MAX_EFRAGS-1 ; i++)
-		cl.free_efrags[i].entnext = &cl.free_efrags[i+1];
-	cl.free_efrags[i].entnext = NULL;
 }
 
 /*
@@ -269,6 +257,9 @@ void CL_PrintEntities_f (void)
 {
 	entity_t	*ent;
 	int			i;
+
+	if (cls.state != ca_connected)
+		return;
 
 	for (i=0,ent=cl_entities ; i<cl.num_entities ; i++,ent++)
 	{
@@ -444,7 +435,7 @@ void CL_RelinkEntities (void)
 				d -= 360;
 			else if (d < -180)
 				d += 360;
-			cl.viewangles[j] = cl.aimangles[j] = cl.mviewangles[1][j] + frac*d;
+			cl.viewangles[j] = cl.mviewangles[1][j] + frac*d;
 		}
 	}
 
@@ -455,8 +446,11 @@ void CL_RelinkEntities (void)
 	{
 		if (!ent->model)
 		{	// empty slot
-			if (ent->forcelink)
-				R_RemoveEfrags (ent);	// just became empty
+			
+			// ericw -- efrags are only used for static entities in GLQuake
+			// ent can't be static, so this is a no-op.
+			//if (ent->forcelink)
+			//	R_RemoveEfrags (ent);	// just became empty
 			continue;
 		}
 
@@ -633,13 +627,13 @@ int CL_ReadFromServer (void)
 
 	//visedicts
 	if (cl_numvisedicts > 256 && dev_peakstats.visedicts <= 256)
-		Con_DWarning ("%i visedicts exceeds standard limit of 256.\n", cl_numvisedicts);
+		Con_DWarning ("%i visedicts exceeds standard limit of 256 (max = %d).\n", cl_numvisedicts, MAX_VISEDICTS);
 	dev_stats.visedicts = cl_numvisedicts;
 	dev_peakstats.visedicts = q_max(cl_numvisedicts, dev_peakstats.visedicts);
 
 	//temp entities
 	if (num_temp_entities > 64 && dev_peakstats.tempents <= 64)
-		Con_DWarning ("%i tempentities exceeds standard limit of 64.\n", num_temp_entities);
+		Con_DWarning ("%i tempentities exceeds standard limit of 64 (max = %d).\n", num_temp_entities, MAX_TEMP_ENTITIES);
 	dev_stats.tempents = num_temp_entities;
 	dev_peakstats.tempents = q_max(num_temp_entities, dev_peakstats.tempents);
 
@@ -648,7 +642,7 @@ int CL_ReadFromServer (void)
 		if (b->model && b->endtime >= cl.time)
 			num_beams++;
 	if (num_beams > 24 && dev_peakstats.beams <= 24)
-		Con_DWarning ("%i beams exceeded standard limit of 24.\n", num_beams);
+		Con_DWarning ("%i beams exceeded standard limit of 24 (max = %d).\n", num_beams, MAX_BEAMS);
 	dev_stats.beams = num_beams;
 	dev_peakstats.beams = q_max(num_beams, dev_peakstats.beams);
 
@@ -657,7 +651,7 @@ int CL_ReadFromServer (void)
 		if (l->die >= cl.time && l->radius)
 			num_dlights++;
 	if (num_dlights > 32 && dev_peakstats.dlights <= 32)
-		Con_DWarning ("%i dlights exceeded standard limit of 32.\n", num_dlights);
+		Con_DWarning ("%i dlights exceeded standard limit of 32 (max = %d).\n", num_dlights, MAX_DLIGHTS);
 	dev_stats.dlights = num_dlights;
 	dev_peakstats.dlights = q_max(num_dlights, dev_peakstats.dlights);
 
@@ -726,6 +720,9 @@ void CL_Tracepos_f (void)
 {
 	vec3_t	v, w;
 
+	if (cls.state != ca_connected)
+		return;
+
 	VectorMA(r_refdef.vieworg, 8192.0, vpn, v);
 	TraceLine(r_refdef.vieworg, v, w);
 
@@ -744,6 +741,8 @@ display client's position and angles
 */
 void CL_Viewpos_f (void)
 {
+	if (cls.state != ca_connected)
+		return;
 #if 0
 	//camera position
 	Con_Printf ("Viewpos: (%i %i %i) %i %i %i\n",
@@ -792,6 +791,8 @@ void CL_Init (void)
 	Cvar_RegisterVariable (&lookspring);
 	Cvar_RegisterVariable (&lookstrafe);
 	Cvar_RegisterVariable (&sensitivity);
+	
+	Cvar_RegisterVariable (&cl_alwaysrun);
 
 	Cvar_RegisterVariable (&m_pitch);
 	Cvar_RegisterVariable (&m_yaw);
