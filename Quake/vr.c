@@ -270,20 +270,6 @@ HmdVector3_t RotateVectorByQuaternion(HmdVector3_t v, HmdQuaternion_t q)
     return result;
 }
 
-// Multiplies quaternion a by quaternion b and returns the result
-// Math borrowed from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/code/
-HmdQuaternion_t MultiplyQuaternion(HmdQuaternion_t a, HmdQuaternion_t b)
-{
-    HmdQuaternion_t final;
-
-    final.x =  a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x;
-    final.y = -a.x * b.z + a.y * b.w + a.z * b.x + a.w * b.y;
-    final.z =  a.x * b.y - a.y * b.x + a.z * b.w + a.w * b.z;
-    final.w = -a.x * b.x - a.y * b.y - a.z * b.z + a.w * b.w;
-
-    return final;
-}
-
 // Transforms a HMD Matrix34 to a Vector3
 // Math borrowed from https://github.com/Omnifinity/OpenVR-Tracking-Example
 HmdVector3_t Matrix34ToVector(HmdMatrix34_t in) 
@@ -313,86 +299,6 @@ HmdQuaternion_t Matrix34ToQuaternion(HmdMatrix34_t in)
     return q;
 }
 
-// Following functions borrowed from http://icculus.org/~phaethon/q3a/misc/quats.html
-void AnglesToQuat(const vec3_t angles, vec4_t quat)
-{
-    vec3_t a;
-    float cr, cp, cy, sr, sp, sy, cpcy, spsy;
-
-    a[PITCH] = (M_PI / 360.0) * angles[PITCH];
-    a[YAW] = (M_PI / 360.0) * angles[YAW];
-    a[ROLL] = (M_PI / 360.0) * angles[ROLL];
-
-    cr = cos(a[ROLL]);
-    cp = cos(a[PITCH]);
-    cy = cos(a[YAW]);
-
-    sr = sin(a[ROLL]);
-    sp = sin(a[PITCH]);
-    sy = sin(a[YAW]);
-
-    cpcy = cp * cy;
-    spsy = sp * sy;
-    quat[0] = cr * cpcy + sr * spsy; // w
-    quat[1] = sr * cpcy - cr * spsy; // x
-    quat[2] = cr * sp * cy + sr * cp * sy; // y
-    quat[3] = cr * cp * sy - sr * sp * cy; // z
-}
-
-HmdQuaternion_t AnglesToHmdQuat(const vec3_t angles)
-{
-    HmdQuaternion_t final;
-    vec3_t a;
-    float cr, cp, cy, sr, sp, sy, cpcy, spsy;
-
-    a[PITCH] = (M_PI / 360.0) * angles[PITCH];
-    a[YAW] = (M_PI / 360.0) * angles[YAW];
-    a[ROLL] = (M_PI / 360.0) * angles[ROLL];
-
-    cr = cos(a[ROLL]);
-    cp = cos(a[PITCH]);
-    cy = cos(a[YAW]);
-
-    sr = sin(a[ROLL]);
-    sp = sin(a[PITCH]);
-    sy = sin(a[YAW]);
-
-    cpcy = cp * cy;
-    spsy = sp * sy;
-    final.w = cr * cpcy + sr * spsy; // w
-    final.x = sr * cpcy - cr * spsy; // x
-    final.y = cr * sp * cy + sr * cp * sy; // y
-    final.z = cr * cp * sy - sr * sp * cy; // z
-
-    return final;
-}
-
-// Converts a quaternion to a euler angle
-void QuatToAngles(const vec4_t q, vec3_t a)
-{
-    vec4_t q2;
-    q2[0] = q[0] * q[0];
-    q2[1] = q[1] * q[1];
-    q2[2] = q[2] * q[2];
-    q2[3] = q[3] * q[3];
-    a[ROLL] = (180.0 / M_PI)*atan2(2 * (q[2] * q[3] + q[1] * q[0]), (-q2[1] - q2[2] + q2[3] + q2[0]));
-    a[PITCH] = (180.0 / M_PI)*asin(-2 * (q[1] * q[3] - q[2] * q[0]));
-    a[YAW] = (180.0 / M_PI)*atan2(2 * (q[1] * q[2] + q[3] * q[0]), (q2[1] - q2[2] - q2[3] + q2[0]));
-}
-
-// HmdQuaternion_t version
-void HmdQuatToAngles(const HmdQuaternion_t q, vec3_t a)
-{
-    vec4_t q2;
-    q2[0] = q.w * q.w;
-    q2[1] = q.x * q.x;
-    q2[2] = q.y * q.y;
-    q2[3] = q.z * q.z;
-    a[ROLL] = (180.0 / M_PI)*atan2(2 * (q.y * q.z + q.x * q.w), (-q2[1] - q2[2] + q2[3] + q2[0]));
-    a[PITCH] = (180.0 / M_PI)*asin(-2 * (q.x * q.z - q.y * q.w));
-    a[YAW] = (180.0 / M_PI)*atan2(2 * (q.x * q.y + q.z * q.w), (q2[1] - q2[2] - q2[3] + q2[0]));
-}
-
 void HmdVec3RotateY(HmdVector3_t* pos, float angle)
 {
 	float s = sin(angle);
@@ -403,9 +309,6 @@ void HmdVec3RotateY(HmdVector3_t* pos, float angle)
 	pos->v[0] = x;
 	pos->v[2] = y;
 }
-
-
-
 
 // ----------------------------------------------------------------------------
 // Callbacks for cvars
@@ -437,7 +340,7 @@ static void VR_Deadzone_f(cvar_t *var)
 
 cvar_t vr_weapon_offset[MAX_WEAPONS * VARS_PER_WEAPON];
 
-typedef struct 
+typedef struct InitialWeaponState
 {
 	aliashdr_t* hdr;
 	vec3_t scale;
