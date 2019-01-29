@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_main.c -- server main program
 
 #include "quakedef.h"
+#include "vr.h"
 
 server_t	sv;
 server_static_t	svs;
@@ -1334,6 +1335,8 @@ void SV_SpawnServer (const char *server)
 
 	Con_DPrintf ("SpawnServer: %s\n",server);
 	svs.changelevel_issued = false;		// now safe to issue another
+
+	VR_ExitLevel();
 
 //
 // tell all connected clients that we are going to a new level

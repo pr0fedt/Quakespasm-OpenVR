@@ -11,15 +11,16 @@
 #define VR_AIMMODE_MOUSE_MYAW_MPITCH 4 // Mouse Aiming; View YAW and PITCH is mouse+head
 #define VR_AIMMODE_BLENDED 5 // Blended Aiming; Mouse aims, with YAW decoupled for limited area
 #define VR_AIMMODE_BLENDED_NOPITCH 6 // Blended Aiming; Mouse aims, with YAW decoupled for limited area, pitch decoupled entirely
+#define VR_AIMMODE_CONTROLLER 7 // Controller Aiming
 
 #define	VR_CROSSHAIR_NONE 0 // No crosshair
 #define	VR_CROSSHAIR_POINT 1 // Point crosshair projected to depth of object it is in front of
 #define	VR_CROSSHAIR_LINE 2 // Line crosshair
 
-void VR_Init();
-void VR_Shutdown();
+void VID_VR_Init();
+void VID_VR_Shutdown();
 qboolean VR_Enable();
-void VR_Disable();
+void VID_VR_Disable();
 
 void VR_UpdateScreenContent();
 void VR_ShowCrosshair();
@@ -29,5 +30,10 @@ void VR_AddOrientationToViewAngles(vec3_t angles);
 void VR_SetAngles(vec3_t angles);
 void VR_ResetOrientation();
 void VR_SetMatrices();
+void VR_SetTrackingSpace(int n);
+void VR_ExitLevel();
+
+extern cvar_t vr_enabled;
+extern cvar_t vr_crosshair;
 
 #endif

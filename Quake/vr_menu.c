@@ -9,7 +9,8 @@ extern cvar_t vr_crosshair_size;
 extern cvar_t vr_crosshair_alpha;
 extern cvar_t vr_aimmode;
 extern cvar_t vr_deadzone;
-extern cvar_t vr_perfhud;
+extern cvar_t vr_world_scale;
+extern cvar_t vr_snap_turn;
 
 static int	vr_options_cursor = 0;
 
@@ -46,13 +47,13 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 		case VR_OPTION_ENABLED:
 			M_DrawCheckbox( cx, cy, (int)vr_enabled.value );
 			break;
-		case VR_OPTION_PERFHUD:
+		/*case VR_OPTION_PERFHUD:
 			if (vr_perfhud.value == 1) value_string = "Latency Timing";
 			else if (vr_perfhud.value == 2) value_string = "Render Timing";
 			else if (vr_perfhud.value == 3) value_string = "Perf Headroom";
 			else if (vr_perfhud.value == 4) value_string = "Version Info";
 			else value_string = "off";
-			break;
+			break;*/
 		case VR_OPTION_AIMMODE:
 			switch ( (int)vr_aimmode.value ) {
 				case VR_AIMMODE_HEAD_MYAW:
@@ -73,6 +74,9 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 					break;
 				case VR_AIMMODE_BLENDED_NOPITCH:
 					value_string = "BLENDED_NOPITCH";
+					break;
+				case VR_AIMMODE_CONTROLLER:
+					value_string = "CONTROLLER";
 					break;
 			}
 			break;
@@ -112,6 +116,20 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 		case VR_OPTION_CROSSHAIR_ALPHA:
 			M_DrawSlider( cx, cy, vr_crosshair_alpha.value );
 			break;
+		case VR_OPTION_WORLD_SCALE:
+			M_DrawSlider(cx, cy, vr_world_scale.value / 2.0f);
+			break;
+		case VR_OPTION_SNAP_TURN:
+			if (vr_snap_turn.value == 0)
+			{
+				value_string = "Smooth";
+			}
+			else
+			{
+				snprintf(value_buffer, sizeof(value_buffer), "%d Degrees", (int)vr_snap_turn.value);
+				value_string = value_buffer;
+			}
+			break;
 	}
 #ifdef _MSC_VER
 #undef snprintf
@@ -135,7 +153,7 @@ static void VR_MenuKeyOption(int key, int option)
 	float ipdDiff = 0.2f;
 	int position[] = { 0, 1, 2 };
 	float multisample[] = { 1.0f, 1.25f, 1.50f, 1.75f, 2.0f };
-	int aimmode[] = { 1, 2, 3, 4, 5, 6 };
+	int aimmode[] = { 1, 2, 3, 4, 5, 6, 7 };
 	int deadzoneDiff = 5;
 	int crosshair[] = { 0, 1, 2 };
 	int crosshairDepthDiff = 32;
@@ -149,11 +167,11 @@ static void VR_MenuKeyOption(int key, int option)
 				VR_MenuPlaySound( "items/r_item2.wav", 0.5 );
 			}
 			break;
-		case VR_OPTION_PERFHUD:
+		/*case VR_OPTION_PERFHUD:
 			intValue = (int)vr_perfhud.value;
 			intValue = CLAMP( debug[0], isLeft ? intValue - 1 : intValue + 1, debug[_maxarray( debug )] );
 			Cvar_SetValue( "vr_perfhud", intValue );
-			break;
+			break;*/
 		case VR_OPTION_AIMMODE:
 			intValue = (int)vr_aimmode.value;
 			intValue = CLAMP( aimmode[0], isLeft ? intValue - 1 : intValue + 1, _sizeofarray( aimmode ) );
@@ -184,6 +202,16 @@ static void VR_MenuKeyOption(int key, int option)
 			floatValue = vr_crosshair_alpha.value;
 			floatValue = CLAMP( 0.0f, isLeft ? floatValue - crosshairAlphaDiff : floatValue + crosshairAlphaDiff, 1.0f );
 			Cvar_SetValue( "vr_crosshair_alpha", floatValue );
+			break;
+		case VR_OPTION_WORLD_SCALE:
+			floatValue = vr_world_scale.value;
+			floatValue = CLAMP(0.0f, isLeft ? floatValue - crosshairAlphaDiff : floatValue + crosshairAlphaDiff, 2.0f);
+			Cvar_SetValue("vr_world_scale", floatValue);
+			break;
+		case VR_OPTION_SNAP_TURN:
+			intValue = (int)vr_snap_turn.value;
+			intValue = CLAMP(0.0f, isLeft ? intValue - 45 : intValue + 45, 90.0f);
+			Cvar_SetValue("vr_snap_turn", intValue);
 			break;
 	}
 
@@ -266,10 +294,10 @@ static void VR_MenuDraw (void)
 				M_Print( 16, y, "            VR Enabled" );
 				VR_MenuPrintOptionValue( 220, y, i );
 				break;
-			case VR_OPTION_PERFHUD:
+			/*case VR_OPTION_PERFHUD:
 				M_Print( 16, y, "             Debug HMD" );
 				VR_MenuPrintOptionValue( 220, y, i );
-				break;
+				break;*/
 			case VR_OPTION_AIMMODE:
 				y += 4; // separation
 				M_Print( 16, y, "              Aim Mode" );
@@ -294,6 +322,14 @@ static void VR_MenuDraw (void)
 			case VR_OPTION_CROSSHAIR_ALPHA:
 				M_Print( 16, y, "       Crosshair Alpha" );
 				VR_MenuPrintOptionValue( 220, y, i );
+				break;
+			case VR_OPTION_WORLD_SCALE:
+				M_Print(16, y, "       World Scale");
+				VR_MenuPrintOptionValue(220, y, i);
+				break;
+			case VR_OPTION_SNAP_TURN:
+				M_Print(16, y, "       Turn");
+				VR_MenuPrintOptionValue(220, y, i);
 				break;
 
 			default: break;

@@ -480,6 +480,10 @@ void CL_RelinkEntities (void)
 				{
 					f = 1;		// assume a teleportation, not a motion
 					ent->lerpflags |= LERP_RESETMOVE; //johnfitz -- don't lerp teleports
+					if (ent == &cl_entities[cl.viewentity])
+					{
+						VR_PushYaw();
+					}
 				}
 			}
 
@@ -682,6 +686,8 @@ void CL_SendCmd (void)
 
 	// allow mice or other external controllers to add to the move
 		IN_Move (&cmd);
+
+		VR_Move (&cmd);
 
 	// send the unreliable message
 		CL_SendMove (&cmd);
