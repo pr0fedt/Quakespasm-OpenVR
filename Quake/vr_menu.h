@@ -16,6 +16,7 @@ typedef enum _vr_menu_options_t
 	VR_OPTION_CROSSHAIR_ALPHA,
 	VR_OPTION_WORLD_SCALE,
 	VR_OPTION_SNAP_TURN,
+	VR_OPTION_MSAA,
 
 	VR_OPTION_MAX
 } vr_menu_options_t;

@@ -130,6 +130,16 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 				value_string = value_buffer;
 			}
 			break;
+		case VR_OPTION_MSAA:
+			if (vr_msaa.value == 0)
+			{
+				value_string = "Off";
+			}
+			else
+			{
+				snprintf(value_buffer, sizeof(value_buffer), "%d Samples", (int)vr_msaa.value);
+				value_string = value_buffer;
+			}
 	}
 #ifdef _MSC_VER
 #undef snprintf
@@ -212,6 +222,13 @@ static void VR_MenuKeyOption(int key, int option)
 			intValue = (int)vr_snap_turn.value;
 			intValue = CLAMP(0.0f, isLeft ? intValue - 45 : intValue + 45, 90.0f);
 			Cvar_SetValue("vr_snap_turn", intValue);
+			break;
+		case VR_OPTION_MSAA:
+			intValue = (int)vr_msaa.value;
+			int max;
+			glGetIntegerv(GL_MAX_SAMPLES, &max);
+			intValue = CLAMP(0, isLeft ? intValue - 1 : intValue + 1, max - 1);
+			Cvar_SetValue("vr_msaa", intValue);
 			break;
 	}
 
@@ -329,6 +346,10 @@ static void VR_MenuDraw (void)
 				break;
 			case VR_OPTION_SNAP_TURN:
 				M_Print(16, y, "       Turn");
+				VR_MenuPrintOptionValue(220, y, i);
+				break;
+			case VR_OPTION_MSAA:
+				M_Print(16, y, "       MSAA");
 				VR_MenuPrintOptionValue(220, y, i);
 				break;
 

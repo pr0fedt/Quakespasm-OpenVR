@@ -20,6 +20,8 @@ extern void VID_Refocus();
 
 typedef struct {
     GLuint framebuffer, depth_texture, texture;
+	GLuint msaa_framebuffer, msaa_texture, msaa_depth_texture;
+	int msaa;
     struct {
         float width, height;
     } size;
@@ -52,12 +54,14 @@ typedef void (APIENTRYP PFNGLBLITFRAMEBUFFEREXTPROC) (GLint, GLint, GLint, GLint
 typedef BOOL(APIENTRYP PFNWGLSWAPINTERVALEXTPROC) (int);
 
 static PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebufferEXT;
+static PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC glCheckFramebufferStatusEXT;
 static PFNGLBLITFRAMEBUFFEREXTPROC glBlitFramebufferEXT;
 static PFNGLDELETEFRAMEBUFFERSEXTPROC glDeleteFramebuffersEXT;
 static PFNGLGENFRAMEBUFFERSEXTPROC glGenFramebuffersEXT;
 static PFNGLFRAMEBUFFERTEXTURE2DEXTPROC glFramebufferTexture2DEXT;
 static PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC glFramebufferRenderbufferEXT;
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
+static PFNGLTEXIMAGE2DMULTISAMPLEPROC glTexImage2DMultisampleEXT;
 
 struct {
     void *func; char *name;
@@ -65,11 +69,13 @@ struct {
     { &glBindFramebufferEXT, "glBindFramebufferEXT" },
     { &glBlitFramebufferEXT, "glBlitFramebufferEXT" },
     { &glDeleteFramebuffersEXT, "glDeleteFramebuffersEXT" },
-    { &glGenFramebuffersEXT, "glGenFramebuffersEXT" },
+	{ &glGenFramebuffersEXT, "glGenFramebuffersEXT" },
+	{ &glTexImage2DMultisampleEXT, "glTexImage2DMultisample" },
     { &glFramebufferTexture2DEXT, "glFramebufferTexture2DEXT" },
     { &glFramebufferRenderbufferEXT, "glFramebufferRenderbufferEXT" },
-    { &wglSwapIntervalEXT, "wglSwapIntervalEXT" },
-    { NULL, NULL },
+	{ &glCheckFramebufferStatusEXT, "glCheckFramebufferStatusEXT"},
+	{ &wglSwapIntervalEXT, "wglSwapIntervalEXT" },
+{ NULL, NULL },
 };
 
 // main screen & 2D drawing
@@ -143,6 +149,7 @@ cvar_t vr_gunangle = { "vr_gunangle", "32", CVAR_ARCHIVE };
 cvar_t vr_world_scale = { "vr_world_scale", "1.0", CVAR_ARCHIVE };
 cvar_t vr_floor_offset = { "vr_floor_offset", "-16", CVAR_ARCHIVE };
 cvar_t vr_snap_turn = { "vr_snap_turn", "0", CVAR_ARCHIVE };
+cvar_t vr_msaa = { "vr_msaa", "4", CVAR_ARCHIVE };
 
 static qboolean InitOpenGLExtensions()
 {
@@ -164,32 +171,90 @@ static qboolean InitOpenGLExtensions()
     return extensions_initialized;
 }
 
+void RecreateTextures(fbo_t* fbo, int width, int height)
+{
+	GLuint oldDepth = fbo->depth_texture;
+	GLuint oldTexture = fbo->texture;
+
+	glGenTextures(1, &fbo->depth_texture);
+	glGenTextures(1, &fbo->texture); 
+	
+	if (oldDepth)
+	{
+		glDeleteTextures(1, &oldDepth);
+		glDeleteTextures(1, &oldTexture);
+	}
+
+	glBindTexture(GL_TEXTURE_2D, fbo->depth_texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+
+	glBindTexture(GL_TEXTURE_2D, fbo->texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	
+	fbo->size.width = width;
+	fbo->size.height = height;
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo->framebuffer);
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, fbo->texture, 0);
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, fbo->depth_texture, 0);
+}
+
+
 fbo_t CreateFBO(int width, int height) {
     fbo_t fbo;
     int swap_chain_length = 0;
 
-    fbo.size.width = width;
-    fbo.size.height = height;
-
     glGenFramebuffersEXT(1, &fbo.framebuffer);
 
-    glGenTextures(1, &fbo.depth_texture);
-    glBindTexture(GL_TEXTURE_2D, fbo.depth_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+	fbo.depth_texture = 0;
 
-    glGenTextures(1, &fbo.texture);
-    glBindTexture(GL_TEXTURE_2D, fbo.texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	RecreateTextures(&fbo, width, height);
+
+	fbo.msaa = 0;
+	fbo.msaa_framebuffer = 0;
+	fbo.msaa_texture = 0;
 
     return fbo;
+}
+
+void CreateMSAA(fbo_t* fbo, int width, int height, int msaa)
+{
+	fbo->msaa = msaa;
+
+	if (fbo->msaa_framebuffer)
+	{
+		glDeleteFramebuffersEXT(1, &fbo->msaa_framebuffer);
+		glDeleteTextures(1, &fbo->msaa_texture);
+		glDeleteTextures(1, &fbo->msaa_depth_texture);
+	}
+
+	glGenFramebuffersEXT(1, &fbo->msaa_framebuffer);
+	glGenTextures(1, &fbo->msaa_texture);
+	glGenTextures(1, &fbo->msaa_depth_texture);
+
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_texture);
+	glTexImage2DMultisampleEXT(GL_TEXTURE_2D_MULTISAMPLE, msaa, GL_RGBA8, width, height, false);
+
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_depth_texture);
+	glTexImage2DMultisampleEXT(GL_TEXTURE_2D_MULTISAMPLE, msaa, GL_DEPTH_COMPONENT24, width, height, false);
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo->msaa_framebuffer);
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_texture, 0);
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D_MULTISAMPLE, fbo->msaa_depth_texture, 0);
+
+	GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		Con_Printf("Framebuffer incomplete %x", status);
+	}
 }
 
 void DeleteFBO(fbo_t fbo) {
@@ -450,7 +515,8 @@ void VID_VR_Init()
 	Cvar_RegisterVariable(&vr_gunangle);
 	Cvar_RegisterVariable(&vr_world_scale);
 	Cvar_RegisterVariable(&vr_floor_offset);
-	Cvar_RegisterVariable(&vr_snap_turn);	
+	Cvar_RegisterVariable(&vr_snap_turn);
+	Cvar_RegisterVariable(&vr_msaa);
 	Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
 
 	InitAllWeaponCVars();
@@ -550,13 +616,29 @@ static void RenderScreenForCurrentEye_OVR()
     int oldglheight = glheight;
     int oldglwidth = glwidth;
 
-    glwidth = current_eye->fbo.size.width;
-    glheight = current_eye->fbo.size.height;
+	IVRSystem_GetRecommendedRenderTargetSize(ovrHMD, &glwidth, &glheight);
 
+	bool newTextures = glwidth != current_eye->fbo.size.width || glheight != current_eye->fbo.size.height;
+	if (newTextures)
+	{
+		RecreateTextures(&current_eye->fbo, glwidth, glheight);
+	}
+
+	if (newTextures || vr_msaa.value != current_eye->fbo.msaa)
+	{
+		CreateMSAA(&current_eye->fbo, glwidth, glheight, vr_msaa.value);
+	}
+	
     // Set up current FBO
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, current_eye->fbo.framebuffer);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, current_eye->fbo.texture, 0);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, current_eye->fbo.depth_texture, 0);
+	if (current_eye->fbo.msaa > 0)
+	{
+		glEnable(GL_MULTISAMPLE);
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, current_eye->fbo.msaa_framebuffer);
+	}
+	else
+	{
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, current_eye->fbo.framebuffer);
+	}
 
     glViewport(0, 0, current_eye->fbo.size.width, current_eye->fbo.size.height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -569,18 +651,25 @@ static void RenderScreenForCurrentEye_OVR()
 
     SCR_UpdateScreenContent();
 
-    // Generate the eye texture and send it to the HMD
+	// Generate the eye texture and send it to the HMD
+
+	if (current_eye->fbo.msaa > 0)
+	{
+		glDisable(GL_MULTISAMPLE);
+		glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, current_eye->fbo.framebuffer);
+		glBindFramebufferEXT(GL_READ_FRAMEBUFFER, current_eye->fbo.msaa_framebuffer); 
+		glDrawBuffer(GL_BACK);              
+		glBlitFramebufferEXT(0, 0, glwidth, glheight, 0, 0, glwidth, glheight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	}
+
     Texture_t eyeTexture = { (void*)current_eye->fbo.texture, TextureType_OpenGL, ColorSpace_Gamma };
     IVRCompositor_Submit(VRCompositor(), current_eye->eye, &eyeTexture);
     
-
     // Reset
     glwidth = oldglwidth;
     glheight = oldglheight;
 
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, 0, 0);
-    glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, 0, 0);
 }
 
 void SetHandPos(int index, entity_t *player)
@@ -819,7 +908,7 @@ void VR_UpdateScreenContent()
     // Blit mirror texture to backbuffer
     glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, eyes[0].fbo.framebuffer);
     glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, 0);
-    glBlitFramebufferEXT(0, eyes[0].fbo.size.height, eyes[0].fbo.size.width, 0, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebufferEXT(0, eyes[0].fbo.size.width, eyes[0].fbo.size.height, 0, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_LINEAR);
     glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, 0);
 }
 

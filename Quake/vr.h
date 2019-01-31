@@ -34,5 +34,5 @@ void VR_SetTrackingSpace(int n);
 
 extern cvar_t vr_enabled;
 extern cvar_t vr_crosshair;
-
+extern cvar_t vr_msaa;
 #endif
