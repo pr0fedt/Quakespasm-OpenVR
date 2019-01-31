@@ -31,7 +31,6 @@ void VR_SetAngles(vec3_t angles);
 void VR_ResetOrientation();
 void VR_SetMatrices();
 void VR_SetTrackingSpace(int n);
-void VR_ExitLevel();
 
 extern cvar_t vr_enabled;
 extern cvar_t vr_crosshair;

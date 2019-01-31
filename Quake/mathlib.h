@@ -103,7 +103,7 @@ float	anglemod(float a);
 
 void RotMatFromAngleVector(vec3_t angles, vec3_t mat[3]);
 void AngleVectorFromRotMat(vec3_t mat[3], vec3_t angles);
-void CreateRotMat(vec3_t axis, float angle, vec3_t mat[3]);
+void CreateRotMat(int axis, float angle, vec3_t mat[3]);
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)	\
 	(((p)->type < 3)?						\

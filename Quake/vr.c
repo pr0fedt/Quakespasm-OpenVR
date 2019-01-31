@@ -340,76 +340,38 @@ static void VR_Deadzone_f(cvar_t *var)
 
 cvar_t vr_weapon_offset[MAX_WEAPONS * VARS_PER_WEAPON];
 
-typedef struct InitialWeaponState
-{
-	aliashdr_t* hdr;
-	vec3_t scale;
-	vec3_t scale_origin;
-	int cvarId;
-	struct InitialWeaponState* next;
-} InitialWeaponState;
-
-static InitialWeaponState* initialStates;
+aliashdr_t* lastWeaponHeader;
+int weaponCVarEntry;
 
 void Mod_Weapon(const char* name, aliashdr_t* hdr)
 {
-	InitialWeaponState* state = initialStates;
-	while (state && state->hdr != hdr)
+	if (lastWeaponHeader != hdr)
 	{
-		state = state->next;
-	}
-	if (!state)
-	{
-		state = (InitialWeaponState*)malloc(sizeof(InitialWeaponState));
-		state->next = initialStates;
-		initialStates = state;
-
-		state->hdr = hdr;
-		_VectorCopy(hdr->scale_origin, state->scale_origin);
-		_VectorCopy(hdr->scale, state->scale);
-		state->cvarId = -1;
-
+		lastWeaponHeader = hdr;
 		for (int i = 0; i < MAX_WEAPONS; i++)
 		{
 			if (!strcmp(vr_weapon_offset[i*VARS_PER_WEAPON + 4].string, name))
 			{
-				state->cvarId = i;
+				weaponCVarEntry = i;
 				break;
 			}
 		}
-		if (state->cvarId == -1)
+		if (weaponCVarEntry == -1)
 		{
 			Con_Printf("No VR offset for weapon: %s \n", name);
 		}
 	}
 
-	if (state->cvarId != -1)
+	if (weaponCVarEntry != -1)
 	{
-
 		float scaleCorrect = vr_world_scale.value / 0.75f; //initial version had 0.75 default world scale, so weapons reflect that
-		VectorScale(state->scale, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 3].value * scaleCorrect, hdr->scale);
+		VectorScale(hdr->original_scale, vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 3].value * scaleCorrect, hdr->scale);
 
-		vec3_t ofs = { vr_weapon_offset[state->cvarId * VARS_PER_WEAPON].value, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 1].value, vr_weapon_offset[state->cvarId * VARS_PER_WEAPON + 2].value };
+		vec3_t ofs = { vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON].value, vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 1].value, vr_weapon_offset[weaponCVarEntry * VARS_PER_WEAPON + 2].value };
 
-		VectorAdd(state->scale_origin, ofs, hdr->scale_origin);
+		VectorAdd(hdr->original_scale_origin, ofs, hdr->scale_origin);
 		VectorScale(hdr->scale_origin, scaleCorrect, hdr->scale_origin);
 	}
-}
-
-void VR_ClearWeaponMods()
-{
-	InitialWeaponState* state = initialStates;
-	while (state)
-	{
-		_VectorCopy(state->scale_origin, state->hdr->scale_origin);
-		_VectorCopy(state->scale, state->hdr->scale);
-		
-		InitialWeaponState* freeState = state;
-		state = state->next;
-
-		free(freeState);
-	}
-	initialStates = NULL;
 }
 
 char* CopyWithNumeral(const char* str, int i)
@@ -424,10 +386,18 @@ char* CopyWithNumeral(const char* str, int i)
 
 void InitWeaponCVar(cvar_t* cvar, const char* name, int i, const char* value)
 {
-	cvar->name = CopyWithNumeral(name, i + 1);
-	cvar->string = value;
-	cvar->flags = CVAR_NONE;
-	Cvar_RegisterVariable(cvar);
+	const char* cvarname = CopyWithNumeral(name, i + 1);
+	if (!Cvar_FindVar(cvarname))
+	{
+		cvar->name = cvarname;
+		cvar->string = value;
+		cvar->flags = CVAR_NONE;
+		Cvar_RegisterVariable(cvar);
+	}
+	else
+	{
+		Cvar_SetQuick(cvar, value);
+	}
 }
 
 void InitWeaponCVars(int i, const char* id, const char* offsetX, const char* offsetY, const char* offsetZ, const char* scale)
@@ -499,7 +469,10 @@ void VID_VR_Init()
     }
 }
 
-
+void VR_InitGame()
+{
+	InitAllWeaponCVars();
+}
 
 qboolean VR_Enable()
 {
@@ -549,12 +522,6 @@ void VR_PushYaw()
 {
 	readbackYaw = 1;
 }
-
-void VR_ExitLevel()
-{
-	VR_ClearWeaponMods();
-}
-
 
 void VID_VR_Shutdown() {
     VID_VR_Disable();

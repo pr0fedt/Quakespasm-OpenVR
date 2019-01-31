@@ -2146,6 +2146,8 @@ static void COM_Game_f (void)
 		CL_Disconnect ();
 		Host_ShutdownServer(true);
 
+		VR_InitGame();
+
 		//Write config file
 		Host_WriteConfiguration ();
 

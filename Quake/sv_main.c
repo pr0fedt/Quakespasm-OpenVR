@@ -1336,8 +1336,6 @@ void SV_SpawnServer (const char *server)
 	Con_DPrintf ("SpawnServer: %s\n",server);
 	svs.changelevel_issued = false;		// now safe to issue another
 
-	VR_ExitLevel();
-
 //
 // tell all connected clients that we are going to a new level
 //
