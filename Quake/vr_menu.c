@@ -119,6 +119,13 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 		case VR_OPTION_WORLD_SCALE:
 			M_DrawSlider(cx, cy, vr_world_scale.value / 2.0f);
 			break;
+		case VR_OPTION_MOVEMENT_MODE:
+			switch ((int)vr_movement_mode.value)
+			{
+			case VR_MOVEMENT_MODE_FOLLOW_HAND: value_string = "Follow hand"; break;
+			case VR_MOVEMENT_MODE_RAW_INPUT: value_string = "Raw input"; break;
+			}
+			break;
 		case VR_OPTION_SNAP_TURN:
 			if (vr_snap_turn.value == 0)
 			{
@@ -217,6 +224,11 @@ static void VR_MenuKeyOption(int key, int option)
 			floatValue = vr_world_scale.value;
 			floatValue = CLAMP(0.0f, isLeft ? floatValue - crosshairAlphaDiff : floatValue + crosshairAlphaDiff, 2.0f);
 			Cvar_SetValue("vr_world_scale", floatValue);
+			break;
+		case VR_OPTION_MOVEMENT_MODE:
+			intValue = (int)vr_movement_mode.value;
+			intValue = CLAMP(0.0f, isLeft ? intValue - 1 : intValue + 1, VR_MAX_MOVEMENT_MODE);
+			Cvar_SetValue("vr_movement_mode", intValue);		
 			break;
 		case VR_OPTION_SNAP_TURN:
 			intValue = (int)vr_snap_turn.value;
@@ -342,6 +354,10 @@ static void VR_MenuDraw (void)
 				break;
 			case VR_OPTION_WORLD_SCALE:
 				M_Print(16, y, "       World Scale");
+				VR_MenuPrintOptionValue(220, y, i);
+				break;
+			case VR_OPTION_MOVEMENT_MODE:
+				M_Print(16, y, "       Movement mode");
 				VR_MenuPrintOptionValue(220, y, i);
 				break;
 			case VR_OPTION_SNAP_TURN:

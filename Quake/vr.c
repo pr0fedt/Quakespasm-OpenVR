@@ -150,6 +150,7 @@ cvar_t vr_world_scale = { "vr_world_scale", "1.0", CVAR_ARCHIVE };
 cvar_t vr_floor_offset = { "vr_floor_offset", "-16", CVAR_ARCHIVE };
 cvar_t vr_snap_turn = { "vr_snap_turn", "0", CVAR_ARCHIVE };
 cvar_t vr_msaa = { "vr_msaa", "4", CVAR_ARCHIVE };
+cvar_t vr_movement_mode = { "vr_movement_mode", "0", CVAR_ARCHIVE };
 
 static qboolean InitOpenGLExtensions()
 {
@@ -517,6 +518,7 @@ void VID_VR_Init()
 	Cvar_RegisterVariable(&vr_floor_offset);
 	Cvar_RegisterVariable(&vr_snap_turn);
 	Cvar_RegisterVariable(&vr_msaa);
+	Cvar_RegisterVariable(&vr_movement_mode);
 	Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
 
 	InitAllWeaponCVars();
@@ -1314,18 +1316,56 @@ void VR_Move(usercmd_t *cmd)
 		
 		vec3_t lfwd, lright, lup;
 		AngleVectors(cl.handrot[0], lfwd, lright, lup);
+		
+		if (vr_movement_mode.value == VR_MOVEMENT_MODE_RAW_INPUT)
+		{
+			cmd->forwardmove += cl_forwardspeed.value * GetAxis(&controllers[0].state, 1);
+			cmd->sidemove += cl_forwardspeed.value * GetAxis(&controllers[0].state, 0);
+		}
+		else
+		{
+			vec3_t vfwd, vright, vup;
+			vec3_t playerYawOnly = { 0, sv_player->v.v_angle[YAW], 0 };
 
-		vec3_t move = { 0, 0, 0 };
-		VectorMA(move, GetAxis(&controllers[0].state, 0), lright, move);
-		VectorMA(move, GetAxis(&controllers[0].state, 1), lfwd, move);
+			AngleVectors(playerYawOnly, vfwd, vright, vup);
 
-		vec3_t vfwd, vright, vup;
-		AngleVectors(cl.aimangles, vfwd, vright, vup);
+			//avoid gimbal by using up if we are point up/down
+			if (fabsf(lfwd[2]) > 0.8f)
+			{
+				if (lfwd[2] < -0.8f)
+				{
+					lfwd[0] *= -1; lfwd[1] *= -1;	lfwd[2] *= -1;
+				}
+				else
+				{
+					lup[0] *= -1; lup[1] *= -1;	lup[2] *= -1;
+				}
+				
+				VectorSwap(lup, lfwd);
+			}
 
-		//Quake run doesn't affect the value of cl_sidespeed.value, so just use forward speed here for consistency
-		cmd->sidemove += cl_forwardspeed.value * DotProduct(move, vright);
-		cmd->forwardmove += cl_forwardspeed.value * DotProduct(move, vfwd);
-		cmd->upmove += cl_upspeed.value * DotProduct(move, vup);
+			//Scale up directions so tilting doesn't affect speed
+			float fac = 1.0f / lup[2];
+			for (int i = 0; i < 3; i++)
+			{
+				lfwd[i] *= fac;
+				lright[i] *= fac;
+			}
+
+			vec3_t move = { 0, 0, 0 };
+			VectorMA(move, GetAxis(&controllers[0].state, 1), lfwd, move);
+			VectorMA(move, GetAxis(&controllers[0].state, 0), lright, move);
+
+			float fwd = DotProduct(move, vfwd);
+			float right = DotProduct(move, vright);
+
+			//Quake run doesn't affect the value of cl_sidespeed.value, so just use forward speed here for consistency
+			cmd->forwardmove += cl_forwardspeed.value * fwd;
+			cmd->sidemove += cl_forwardspeed.value * right;
+		}
+				
+		AngleVectors(cl.handrot[0], lfwd, lright, lup);
+		cmd->upmove += cl_upspeed.value * GetAxis(&controllers[0].state, 1) * lfwd[2];
 
 		if (cl_forwardspeed.value > 200 && cl_movespeedkey.value)
 			cmd->forwardmove /= cl_movespeedkey.value;

@@ -17,6 +17,10 @@
 #define	VR_CROSSHAIR_POINT 1 // Point crosshair projected to depth of object it is in front of
 #define	VR_CROSSHAIR_LINE 2 // Line crosshair
 
+#define VR_MOVEMENT_MODE_FOLLOW_HAND 0
+#define VR_MOVEMENT_MODE_RAW_INPUT 1
+#define VR_MAX_MOVEMENT_MODE VR_MOVEMENT_MODE_RAW_INPUT
+
 void VID_VR_Init();
 void VID_VR_Shutdown();
 qboolean VR_Enable();
@@ -35,4 +39,5 @@ void VR_SetTrackingSpace(int n);
 extern cvar_t vr_enabled;
 extern cvar_t vr_crosshair;
 extern cvar_t vr_msaa;
+extern cvar_t vr_movement_mode;
 #endif
