@@ -486,7 +486,7 @@ void InitAllWeaponCVars()
 	//vanilla quake weapons
 	InitWeaponCVars(i++, "progs/v_axe.mdl", "-4", "24", "37", "0.33");
 	InitWeaponCVars(i++, "progs/v_shot.mdl", "1.5", "1", "10", "0.5"); //gun
-	InitWeaponCVars(i++, "progs/v_shot2.mdl", "3.5", "1", "10", "0.5"); //shotgun
+	InitWeaponCVars(i++, "progs/v_shot2.mdl", "-3.5", "1", "8.5", "0.8"); //shotgun
 	InitWeaponCVars(i++, "progs/v_nail.mdl", "-5", "3", "15", "0.5"); //nailgun
 	InitWeaponCVars(i++, "progs/v_nail2.mdl", "0", "3", "19`", "0.5"); //supernailgun
 	InitWeaponCVars(i++, "progs/v_rock.mdl", "10", "1.5", "13", "0.5"); //grenade
