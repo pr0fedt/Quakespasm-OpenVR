@@ -11,8 +11,11 @@ extern cvar_t vr_aimmode;
 extern cvar_t vr_deadzone;
 extern cvar_t vr_world_scale;
 extern cvar_t vr_snap_turn;
+extern cvar_t vr_turn_speed;
 
 static int	vr_options_cursor = 0;
+
+#define VR_MAX_TURN_SPEED 10.0f
 
 extern void M_DrawSlider (int x, int y, float range);
 
@@ -137,6 +140,9 @@ static void VR_MenuPrintOptionValue(int cx, int cy, int option)
 				value_string = value_buffer;
 			}
 			break;
+		case VR_OPTION_TURN_SPEED:
+			M_DrawSlider(cx, cy, vr_turn_speed.value / VR_MAX_TURN_SPEED);
+			break;
 		case VR_OPTION_MSAA:
 			if (vr_msaa.value == 0)
 			{
@@ -234,6 +240,11 @@ static void VR_MenuKeyOption(int key, int option)
 			intValue = (int)vr_snap_turn.value;
 			intValue = CLAMP(0.0f, isLeft ? intValue - 45 : intValue + 45, 90.0f);
 			Cvar_SetValue("vr_snap_turn", intValue);
+			break;
+		case VR_OPTION_TURN_SPEED:
+			floatValue = vr_turn_speed.value;
+			floatValue = CLAMP(0.0f, isLeft ? floatValue - 0.25f : floatValue + 0.25f, VR_MAX_TURN_SPEED);
+			Cvar_SetValue("vr_turn_speed", floatValue);
 			break;
 		case VR_OPTION_MSAA:
 			intValue = (int)vr_msaa.value;
@@ -362,6 +373,10 @@ static void VR_MenuDraw (void)
 				break;
 			case VR_OPTION_SNAP_TURN:
 				M_Print(16, y, "       Turn");
+				VR_MenuPrintOptionValue(220, y, i);
+				break;
+			case VR_OPTION_TURN_SPEED:
+				M_Print(16, y, "       Turn Speed");
 				VR_MenuPrintOptionValue(220, y, i);
 				break;
 			case VR_OPTION_MSAA:

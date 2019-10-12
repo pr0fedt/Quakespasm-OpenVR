@@ -149,6 +149,7 @@ cvar_t vr_gunangle = { "vr_gunangle", "32", CVAR_ARCHIVE };
 cvar_t vr_world_scale = { "vr_world_scale", "1.0", CVAR_ARCHIVE };
 cvar_t vr_floor_offset = { "vr_floor_offset", "-16", CVAR_ARCHIVE };
 cvar_t vr_snap_turn = { "vr_snap_turn", "0", CVAR_ARCHIVE };
+cvar_t vr_turn_speed = { "vr_turn_speed", "1", CVAR_ARCHIVE };
 cvar_t vr_msaa = { "vr_msaa", "4", CVAR_ARCHIVE };
 cvar_t vr_movement_mode = { "vr_movement_mode", "0", CVAR_ARCHIVE };
 
@@ -517,6 +518,7 @@ void VID_VR_Init()
 	Cvar_RegisterVariable(&vr_world_scale);
 	Cvar_RegisterVariable(&vr_floor_offset);
 	Cvar_RegisterVariable(&vr_snap_turn);
+	Cvar_RegisterVariable(&vr_turn_speed);
 	Cvar_RegisterVariable(&vr_msaa);
 	Cvar_RegisterVariable(&vr_movement_mode);
 	Cvar_SetCallback(&vr_deadzone, VR_Deadzone_f);
@@ -1390,7 +1392,7 @@ void VR_Move(usercmd_t *cmd)
 		}
 		else
 		{
-			vrYaw -= yawMove * host_frametime * 100.0f;
+			vrYaw -= yawMove * host_frametime * 100.0f * vr_turn_speed.value;
 		}
 	}
 }
