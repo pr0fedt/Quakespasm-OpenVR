@@ -70,6 +70,10 @@
     <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
+    <ExecutablePath>C:\Users\alex\lib\openvr\bin\win32;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>C:\Users\alex\lib\openvr\headers;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\alex\lib\openvr\lib\win32;$(LibraryPath)</LibraryPath>
+    <ReferencePath>C:\Users\alex\lib\openvr\bin\win32;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
